@@ -1,8 +1,7 @@
 use reqwest;
 use scraper::Html;
-// use scraper::Html;
 
-fn get_conjugation_tables() -> Vec<Html> {
+fn scrape_conjugation_tables() -> Vec<Html> {
     let response = reqwest::blocking::get(
         "https://www.wordreference.com/conj/frverbs.aspx?v=saper",
     )
@@ -17,23 +16,45 @@ fn get_conjugation_tables() -> Vec<Html> {
     tables.collect::<Vec<Html>>()
 }
 
+struct ConjugationTable<'a> {
+    title: String,
+    items: Vec<Vec<&'a str>>,
+}
+
 fn extract_conjugations_from_table(table: &Html) {
     let row_query = scraper::Selector::parse("tr").unwrap();
+    let conjugation_tables: Vec<ConjugationTable> = Vec::new();
 
     let rows = table.select(&row_query);
     for row in rows {
-        for cell in row.text() {
-            println!("cell: {:#?}", cell);
+        let mut text_elements = row.text();
+        let conjugation_table = ConjugationTable {title: "".to_string(), items: Vec::new()};
+
+        loop {
+            if let Some(x) = text_elements.next() {
+                let left = x;
+
+                if let Some(y) = text_elements.next() {
+                    let right = y;
+
+                    let table_row = vec![left, right];
+                } else {
+                    break
+                }    
+            } else {
+                break
+            }
         }
     }
 }
 
-fn main() {
-    let conjugation_tables = get_conjugation_tables();
-    for conjugation_table in conjugation_tables {
-        println!("Conjugation Table:");
-        extract_conjugations_from_table(&conjugation_table);
-
-        println!("");
+fn get_conjugation_tables() {
+    let scraped_tables = scrape_conjugation_tables();
+    for scraped_table in scraped_tables {
+        let table = extract_conjugations_from_table(&scraped_table);
     }
+}
+
+fn main() {
+    get_conjugation_tables();
 }
