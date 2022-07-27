@@ -12,9 +12,9 @@ use crossterm::{
 use std::{error::Error, io};
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Layout},
+    layout::{Constraint, Layout, Direction},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Cell, Row, Table, TableState},
+    widgets::{Block, Borders, Cell, Row, Table, TableState, Paragraph},
     Frame, Terminal,
 };
 
@@ -65,7 +65,14 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Resu
 
 pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let rects = Layout::default()
-        .constraints([Constraint::Percentage(100)].as_ref())
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Length(3),
+                Constraint::Percentage(90),
+            ]
+            .as_ref()
+        )
         .margin(5)
         .split(f.size());
 
@@ -96,5 +103,10 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
             Constraint::Length(30),
             Constraint::Min(10),
         ]);
-    f.render_stateful_widget(t, rects[0], &mut app.state);
+
+        let input = Paragraph::new(app.input.as_ref())
+        .style(Style::default())
+        .block(Block::default().borders(Borders::ALL).title("Input"));
+        f.render_widget(input, rects[0]);
+        f.render_stateful_widget(t, rects[1], &mut app.state);
 }
