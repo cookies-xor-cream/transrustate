@@ -32,6 +32,19 @@ impl ConjugationTable {
             conjugations: conjugations,
         }
     }
+
+    pub fn conjugations_as_strings(&self) -> Vec<Vec<&str>> {
+        let mut conj_table: Vec<Vec<&str>> = Vec::new();
+        for vector in &self.conjugations {
+            let mut conj_row: Vec<&str> = Vec::new();
+            for string in vector {
+                conj_row.push(&string.as_str());
+            }
+            conj_table.push(conj_row);
+        }
+
+        conj_table
+    }
 }
 
 pub struct VerbConjugations {
