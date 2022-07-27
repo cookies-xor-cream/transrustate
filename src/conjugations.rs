@@ -7,9 +7,9 @@ pub struct ConjugationTable {
 }
 
 impl ConjugationTable {
-    fn new(cell_values: Vec<&str>) -> ConjugationTable {
+    fn new(cell_values: Vec<String>) -> ConjugationTable {
         // skip header text
-        let mut text_iter = cell_values.iter().skip(2);
+        let mut text_iter = cell_values.iter().skip(1);
         
         // get pronoun/conjugation pairs remaining
         let mut conjugations: Vec<Vec<String>> = Vec::new();
@@ -79,15 +79,21 @@ impl VerbConjugations {
 
     fn extract_conjugations_from_table(&mut self, table: Html) {        
         let row_query = scraper::Selector::parse("tr").unwrap();
+        let cell_query = scraper::Selector::parse("td, th").unwrap();
+
         let rows = table.select(&row_query);
 
-        // flatten all text in rows
+        // concatenate all text inside a cell first
+        // this is because there can be further nested elements
         let cell_values = rows.map(|row| {
-            row.text().collect::<Vec<&str>>()
+            let cells = row.select(&cell_query);
+            cells.map(|cell| {
+                cell.text().collect::<String>()
+            })
+                .collect::<Vec<String>>()
         })
-            .into_iter()
             .flatten()
-            .collect::<Vec<&str>>();
+            .collect::<Vec<String>>();
 
         self.conjugation_tables.push(ConjugationTable::new(cell_values));
     }

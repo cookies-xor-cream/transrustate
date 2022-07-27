@@ -125,19 +125,17 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .margin(5)
         .split(f.size());
 
-    let selected_style = Style::default().add_modifier(Modifier::REVERSED);
-    let normal_style = Style::default().bg(Color::Blue);
-    let header_cells = ["Pronouns", "Conjugation"];
+    let reversed_style = Style::default().add_modifier(Modifier::REVERSED);
+    let header_cells = app.table_data.header.clone();
     let header = Row::new(header_cells)
-        .style(normal_style)
-        .height(1)
-        .bottom_margin(1);
+        .style(reversed_style)
+        .height(1);
     let rows = app.table_data.items
         .iter()
         .map(|item| {
             let height = 1;
             let cells = item.iter().map(|c| Cell::from(c.as_str()));
-            Row::new(cells).height(height).bottom_margin(1)
+            Row::new(cells).height(height)
         });
 
     let current_conjugation_table = Table::new(rows)
