@@ -1,6 +1,11 @@
 use reqwest;
 use scraper::Html;
 
+struct ConjugationTable<'a> {
+    title: String,
+    items: Vec<Vec<&'a str>>,
+}
+
 fn scrape_conjugation_tables() -> Vec<Html> {
     let response = reqwest::blocking::get(
         "https://www.wordreference.com/conj/frverbs.aspx?v=saper",
@@ -16,36 +21,44 @@ fn scrape_conjugation_tables() -> Vec<Html> {
     tables.collect::<Vec<Html>>()
 }
 
-struct ConjugationTable<'a> {
-    title: String,
-    items: Vec<Vec<&'a str>>,
-}
-
-fn extract_conjugations_from_table(table: &Html) {
+fn extract_conjugations_from_table(table: &Html) -> ConjugationTable {
+    let mut conjugation_table = ConjugationTable {
+        title: "".to_string(),
+        items: Vec::new(),
+    };
+    
     let row_query = scraper::Selector::parse("tr").unwrap();
-    let conjugation_tables: Vec<ConjugationTable> = Vec::new();
-
     let rows = table.select(&row_query);
-    for row in rows {
-        let mut text_elements = row.text();
-        let conjugation_table = ConjugationTable {title: "".to_string(), items: Vec::new()};
 
-        loop {
-            if let Some(x) = text_elements.next() {
-                let left = x;
+    // flatten all text in rows
+    let cell_values = rows.map(|row| {
+        row.text().collect::<Vec<&str>>()
+    })
+        .into_iter()
+        .flatten()
+        .collect::<Vec<&str>>();
 
-                if let Some(y) = text_elements.next() {
-                    let right = y;
+    conjugation_table.title = cell_values[0].to_string();
 
-                    let table_row = vec![left, right];
-                } else {
-                    break
-                }    
+    // skip header text
+    let mut text_iter = cell_values.iter().skip(2);
+    
+    // get pronoun/conjugation pairs remaining
+    let mut conjugations: Vec<Vec<&str>> = Vec::new();
+    loop {
+        if let Some(pronoun) = text_iter.next() {
+            if let Some(conjugation) = text_iter.next() {
+                conjugations.push(vec![pronoun, conjugation]);
             } else {
-                break
+                break;
             }
+        } else {
+            break;
         }
     }
+
+    conjugation_table.items = conjugations;
+    conjugation_table
 }
 
 fn get_conjugation_tables() {
