@@ -1,6 +1,4 @@
-#[path="./conjugations.rs"]
-mod conjugations;
-use conjugations::VerbConjugations;
+use crate::conjugations::VerbConjugations;
 
 use reqwest;
 use scraper::{ElementRef, Html};
@@ -18,26 +16,71 @@ use tui::{
     Frame, Terminal,
 };
 
+pub struct TableData {
+    title: String,
+    header: Vec<String>,
+    items: Vec<Vec<String>>,
+}
+
+impl TableData {
+    fn new() -> TableData {
+        TableData {
+            title: String::new(),
+            header: Vec::new(),
+            items: Vec::new(),
+        }
+    }
+}
+
 pub struct App {
     state: TableState,
-    items: Vec<Vec<String>>,
+    conjugations: VerbConjugations,
+    table_data: TableData,
     input: String,
+    current_table: usize,
 }
 
 impl App {
-    pub fn new(items: Vec<Vec<String>>) -> App {
+    pub fn new(conj: VerbConjugations) -> App {
         App {
             state: TableState::default(),
-            items: items,
+            conjugations: conj,
+            table_data: TableData::new(),
             input: String::new(),
+            current_table: 0,
         }
     }
 
     fn set_verb(&mut self) {
         let verb: String = self.input.drain(..).collect();
-        let y = VerbConjugations::get_conjugation_tables(&verb);
-        let x = &y.conjugation_tables[0].conjugations_as_strings();
-        self.items = x.to_vec();
+        self.conjugations = VerbConjugations::get_conjugation_tables(&verb);
+        self.current_table = 0;
+        self.set_table_data();
+    }
+
+    fn set_table_data(&mut self) {
+        let items = self.conjugations.conjugation_tables[self.current_table].conjugations_as_strings();
+        let tense = (&self.conjugations.conjugation_tables[self.current_table].tense).clone();
+        self.table_data = TableData {
+            title: tense,
+            header: vec![
+                "Pronouns".to_string(),
+                "Conjugations".to_string(),
+            ],
+            items: items,
+        };
+    }
+
+    fn next(&mut self) {
+        let num_tables = self.conjugations.conjugation_tables.len();
+        self.current_table = (self.current_table + 1) % num_tables;
+        self.set_table_data();
+    }
+
+    fn prev(&mut self) {
+        let num_tables = self.conjugations.conjugation_tables.len();
+        self.current_table = (self.current_table + num_tables - 1) % num_tables;
+        self.set_table_data();
     }
 }
 
@@ -47,7 +90,13 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Resu
 
         if let Event::Key(key) = event::read()? {
             match key.code {
-                KeyCode::Char('q') => return Ok(()),
+                KeyCode::Esc => return Ok(()),
+                KeyCode::Right => {
+                    app.next();
+                }
+                KeyCode::Left => {
+                    app.prev();
+                }
                 KeyCode::Backspace => {
                     app.input.pop();
                 }
@@ -83,30 +132,31 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .style(normal_style)
         .height(1)
         .bottom_margin(1);
-    let rows = app.items.iter().map(|item| {
-        let height = item
-            .iter()
-            .map(|content| content.chars().filter(|c| *c == '\n').count())
-            .max()
-            .unwrap_or(0)
-            + 1;
-        let cells = item.iter().map(|c| Cell::from(c.as_str()));
-        Row::new(cells).height(height as u16).bottom_margin(1)
-    });
-    let t = Table::new(rows)
+    let rows = app.table_data.items
+        .iter()
+        .map(|item| {
+            let height = 1;
+            let cells = item.iter().map(|c| Cell::from(c.as_str()));
+            Row::new(cells).height(height).bottom_margin(1)
+        });
+
+    let current_conjugation_table = Table::new(rows)
         .header(header)
-        .block(Block::default().borders(Borders::ALL).title("Table"))
-        .highlight_style(selected_style)
-        .highlight_symbol(">> ")
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title((&app.table_data.title).clone())
+        )
         .widths(&[
             Constraint::Percentage(50),
             Constraint::Length(30),
             Constraint::Min(10),
         ]);
+    f.render_stateful_widget(current_conjugation_table, rects[1], &mut app.state);
 
-        let input = Paragraph::new(app.input.as_ref())
+    let input = Paragraph::new(app.input.as_ref())
         .style(Style::default())
-        .block(Block::default().borders(Borders::ALL).title("Input"));
-        f.render_widget(input, rects[0]);
-        f.render_stateful_widget(t, rects[1], &mut app.state);
+        .block(Block::default().borders(Borders::ALL).title("Verb Input"));
+
+    f.render_widget(input, rects[0]);
 }
