@@ -18,17 +18,26 @@ use tui::{
     Frame, Terminal,
 };
 
-pub struct App<'a> {
+pub struct App {
     state: TableState,
-    items: Vec<Vec<&'a str>>,
+    items: Vec<Vec<String>>,
+    input: String,
 }
 
-impl<'a> App<'a> {
-    pub fn new(items: Vec<Vec<&'a str>>) -> App<'a> {
+impl App {
+    pub fn new(items: Vec<Vec<String>>) -> App {
         App {
             state: TableState::default(),
             items: items,
+            input: String::new(),
         }
+    }
+
+    fn set_verb(&mut self) {
+        let verb: String = self.input.drain(..).collect();
+        let y = VerbConjugations::get_conjugation_tables(&verb);
+        let x = &y.conjugation_tables[0].conjugations_as_strings();
+        self.items = x.to_vec();
     }
 }
 
@@ -39,6 +48,15 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Resu
         if let Event::Key(key) = event::read()? {
             match key.code {
                 KeyCode::Char('q') => return Ok(()),
+                KeyCode::Backspace => {
+                    app.input.pop();
+                }
+                KeyCode::Enter => {
+                    app.set_verb();
+                }
+                KeyCode::Char(c) => {
+                    app.input.push(c);
+                }
                 _ => {}
             }
         }
@@ -53,9 +71,7 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     let selected_style = Style::default().add_modifier(Modifier::REVERSED);
     let normal_style = Style::default().bg(Color::Blue);
-    let header_cells = ["Header1", "Header2", "Header3"]
-        .iter()
-        .map(|h| Cell::from(*h).style(Style::default().fg(Color::Red)));
+    let header_cells = ["Pronouns", "Conjugation"];
     let header = Row::new(header_cells)
         .style(normal_style)
         .height(1)
@@ -67,7 +83,7 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
             .max()
             .unwrap_or(0)
             + 1;
-        let cells = item.iter().map(|c| Cell::from(*c));
+        let cells = item.iter().map(|c| Cell::from(c.as_str()));
         Row::new(cells).height(height as u16).bottom_margin(1)
     });
     let t = Table::new(rows)

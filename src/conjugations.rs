@@ -33,12 +33,12 @@ impl ConjugationTable {
         }
     }
 
-    pub fn conjugations_as_strings(&self) -> Vec<Vec<&str>> {
-        let mut conj_table: Vec<Vec<&str>> = Vec::new();
+    pub fn conjugations_as_strings(&self) -> Vec<Vec<String>> {
+        let mut conj_table: Vec<Vec<String>> = Vec::new();
         for vector in &self.conjugations {
-            let mut conj_row: Vec<&str> = Vec::new();
+            let mut conj_row: Vec<String> = Vec::new();
             for string in vector {
-                conj_row.push(&string.as_str());
+                conj_row.push(string.to_string());
             }
             conj_table.push(conj_row);
         }
@@ -58,9 +58,11 @@ impl VerbConjugations {
         }
     }
 
-    fn scrape_conjugation_tables(&self) -> Vec<Html> {
+    fn scrape_conjugation_tables(&self, verb: &str) -> Vec<Html> {
+        let mut verb_query_url = "https://www.wordreference.com/conj/frverbs.aspx?v=".to_owned();
+        verb_query_url.push_str(verb);
         let response = reqwest::blocking::get(
-            "https://www.wordreference.com/conj/frverbs.aspx?v=saper",
+            verb_query_url,
         )
             .unwrap()
             .text()
@@ -90,9 +92,9 @@ impl VerbConjugations {
         self.conjugation_tables.push(ConjugationTable::new(cell_values));
     }
 
-    pub fn get_conjugation_tables() -> VerbConjugations {
+    pub fn get_conjugation_tables(verb: &str) -> VerbConjugations {
         let mut verb_conjugations = VerbConjugations::new();
-        let tables = verb_conjugations.scrape_conjugation_tables();
+        let tables = verb_conjugations.scrape_conjugation_tables(verb);
         for table in tables {
             verb_conjugations.extract_conjugations_from_table(table);
         }

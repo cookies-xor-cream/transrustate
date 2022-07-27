@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // create app and run it
-    let y = VerbConjugations::get_conjugation_tables();
+    let y = VerbConjugations::get_conjugation_tables(&"etudier");
     let x = y.conjugation_tables[0].conjugations_as_strings();
     let app = App::new(x);
     let res = run_app(&mut terminal, app);
