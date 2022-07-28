@@ -45,14 +45,22 @@ pub struct App {
 
 impl App {
     pub fn new() -> App {
+        let default_language = "french".to_string();
         App {
             state: TableState::default(),
             conjugations: VerbConjugations::empty(),
             table_data: TableData::new(),
             input: String::new(),
             current_table: 0,
-            language: "french".to_string(),
+            language: default_language,
         }
+    }
+
+    fn remove_prefix(&mut self) {
+        self.input = self.input
+            .split(" ")
+            .skip(1)
+            .collect::<String>();
     }
 
     fn set_verb(&mut self) {
@@ -63,22 +71,19 @@ impl App {
         self.set_table_data();
     }
 
-    fn handle_error(&mut self) {
-        // TODO
-        self.input = "".to_string();
-    }
-
     fn set_language(&mut self) {
         self.remove_prefix();
         let language: String = self.input.drain(..).collect();
         self.language = language;
     }
 
-    fn remove_prefix(&mut self) {
-        self.input = self.input
-            .split(" ")
-            .skip(1)
-            .collect::<String>();
+    fn display_help(&mut self) {
+        // TODO
+    }
+
+    fn handle_error(&mut self) {
+        // TODO
+        self.input = "".to_string();
     }
 
     fn handle_entry(&mut self) {
@@ -86,6 +91,7 @@ impl App {
         match string {
             _ if string.starts_with("lang") => self.set_language(),
             _ if string.starts_with("conj") => self.set_verb(),
+            _ if string.starts_with("help") => self.display_help(),
             _ => self.handle_error(),
         };
     }
@@ -101,6 +107,10 @@ impl App {
             ],
             items: items,
         };
+    }
+
+    fn conjugation_table_open(&self) -> bool {
+        self.conjugations.conjugation_tables.len() > 0
     }
 
     fn next(&mut self) {
@@ -157,36 +167,39 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .margin(5)
         .split(f.size());
 
-    let reversed_style = Style::default().add_modifier(Modifier::REVERSED);
-    let header_cells = app.table_data.header.clone();
-    let header = Row::new(header_cells)
-        .style(reversed_style)
-        .height(1);
-    let rows = app.table_data.items
-        .iter()
-        .map(|item| {
-            let height = 1;
-            let cells = item.iter().map(|c| Cell::from(c.as_str()));
-            Row::new(cells).height(height)
-        });
-
-    let current_conjugation_table = Table::new(rows)
-        .header(header)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title((&app.table_data.title).clone())
-        )
-        .widths(&[
-            Constraint::Percentage(50),
-            Constraint::Length(30),
-            Constraint::Min(10),
-        ]);
-    f.render_stateful_widget(current_conjugation_table, rects[1], &mut app.state);
-
     let input = Paragraph::new(app.input.as_ref())
-        .style(Style::default())
-        .block(Block::default().borders(Borders::ALL).title("Verb Input"));
+    .style(Style::default())
+    .block(Block::default().borders(Borders::ALL).title("Verb Input"));
 
     f.render_widget(input, rects[0]);
+
+    if (app.conjugation_table_open()) {
+        let reversed_style = Style::default().add_modifier(Modifier::REVERSED);
+        let header_cells = app.table_data.header.clone();
+        let header = Row::new(header_cells)
+            .style(reversed_style)
+            .height(1);
+        let rows = app.table_data.items
+            .iter()
+            .map(|item| {
+                let height = 1;
+                let cells = item.iter().map(|c| Cell::from(c.as_str()));
+                Row::new(cells).height(height)
+            });
+
+        let current_conjugation_table = Table::new(rows)
+            .header(header)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title((&app.table_data.title).clone())
+            )
+            .widths(&[
+                Constraint::Percentage(50),
+                Constraint::Length(30),
+                Constraint::Min(10),
+            ]);
+
+        f.render_stateful_widget(current_conjugation_table, chunks[1], &mut app.state);
+    }
 }
