@@ -98,16 +98,18 @@ impl App {
     }
 
     fn set_table_data(&mut self) {
-        let items = self.conjugations.conjugation_tables[self.current_table].conjugations_as_strings();
-        let tense = (&self.conjugations.conjugation_tables[self.current_table].tense).clone();
-        self.table_data = TableData {
-            title: tense,
-            header: vec![
-                "Pronouns".to_string(),
-                "Conjugations".to_string(),
-            ],
-            items: items,
-        };
+        if self.conjugations.conjugation_tables.len() < self.current_table {
+            let items = self.conjugations.conjugation_tables[self.current_table].conjugations_as_strings();
+            let tense = (&self.conjugations.conjugation_tables[self.current_table].tense).clone();
+            self.table_data = TableData {
+                title: tense,
+                header: vec![
+                    "Pronouns".to_string(),
+                    "Conjugations".to_string(),
+                ],
+                items: items,
+            };
+        }
     }
 
     fn conjugation_table_open(&self) -> bool {
@@ -116,16 +118,20 @@ impl App {
 
     fn next(&mut self) {
         let num_tables = self.conjugations.conjugation_tables.len();
-        let modulus = std::cmp::max(num_tables, 1);
-        self.current_table = (self.current_table + 1) % modulus;
-        self.set_table_data();
+
+        if num_tables > 0 {
+            self.current_table = (self.current_table + 1) % num_tables;
+            self.set_table_data();
+        }
     }
 
     fn prev(&mut self) {
         let num_tables = self.conjugations.conjugation_tables.len();
-        let modulus = std::cmp::max(num_tables, 1);
-        self.current_table = (self.current_table + num_tables - 1) % modulus;
-        self.set_table_data();
+
+        if num_tables > 0 {
+            self.current_table = (self.current_table + num_tables - 1) % num_tables;
+            self.set_table_data();
+        }
     }
 }
 
