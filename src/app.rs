@@ -56,22 +56,37 @@ impl App {
     }
 
     fn set_verb(&mut self) {
+        self.remove_prefix();
         let verb: String = self.input.drain(..).collect();
         self.conjugations = VerbConjugations::get_conjugation_tables(verb.as_str(), self.language.as_str());
         self.current_table = 0;
         self.set_table_data();
     }
 
+    fn handle_error(&mut self) {
+        // TODO
+        self.input = "".to_string();
+    }
+
     fn set_language(&mut self) {
+        self.remove_prefix();
         let language: String = self.input.drain(..).collect();
         self.language = language;
     }
 
+    fn remove_prefix(&mut self) {
+        self.input = self.input
+            .split(" ")
+            .skip(1)
+            .collect::<String>();
+    }
+
     fn handle_entry(&mut self) {
-        match self.input.as_str() {
-            "french" => self.set_language(),
-            "italian" => self.set_language(),
-            _ => self.set_verb(),
+        let string = self.input.as_str();
+        match string {
+            _ if string.starts_with("lang") => self.set_language(),
+            _ if string.starts_with("conj") => self.set_verb(),
+            _ => self.handle_error(),
         };
     }
 
