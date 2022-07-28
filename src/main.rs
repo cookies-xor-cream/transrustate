@@ -19,7 +19,7 @@ use tui::{
 
 use conjugations::VerbConjugations;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn start_app() -> Result<(), Box<dyn Error>> {
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -45,4 +45,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
+}
+
+fn main() {
+    start_app();
 }

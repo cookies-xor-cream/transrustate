@@ -12,9 +12,10 @@ use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Layout, Direction},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Cell, Row, Table, TableState, Paragraph},
+    widgets::{Block, Borders, Cell, Row, Table, TableState, Paragraph, Gauge},
     Frame, Terminal,
 };
+
 
 use crate::wordreference::wordreference_utils;
 
@@ -115,13 +116,15 @@ impl App {
 
     fn next(&mut self) {
         let num_tables = self.conjugations.conjugation_tables.len();
-        self.current_table = (self.current_table + 1) % num_tables;
+        let modulus = std::cmp::max(num_tables, 1);
+        self.current_table = (self.current_table + 1) % modulus;
         self.set_table_data();
     }
 
     fn prev(&mut self) {
         let num_tables = self.conjugations.conjugation_tables.len();
-        self.current_table = (self.current_table + num_tables - 1) % num_tables;
+        let modulus = std::cmp::max(num_tables, 1);
+        self.current_table = (self.current_table + num_tables - 1) % modulus;
         self.set_table_data();
     }
 }
@@ -155,7 +158,17 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Resu
 }
 
 pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    let rects = Layout::default()
+    // let groups = Group::default()
+    //     .direction(Direction::Vertical)
+    //     .margin(0)
+    //     .sizes(&[Size::Percent(50), Size::Percent(50)]);
+
+    let default_style = Style::default().fg(Color::Yellow).bg(Color::Black);
+
+    let screen_block = Block::default().style(default_style);
+    f.render_widget(screen_block, f.size());
+
+    let vertical_divide = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
             [
@@ -167,14 +180,33 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .margin(5)
         .split(f.size());
 
-    let input = Paragraph::new(app.input.as_ref())
-    .style(Style::default())
-    .block(Block::default().borders(Borders::ALL).title("Verb Input"));
+    let top_bar_area = vertical_divide[0];
+    let content_area = vertical_divide[1];
 
-    f.render_widget(input, rects[0]);
+    let top_bar_divide = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Percentage(80),
+                Constraint::Percentage(20),
+            ]
+            .as_ref()
+        )
+        // .margin(5)
+        .split(top_bar_area);
+
+    let prompt_rect = top_bar_divide[0];
+    let guage_rect = top_bar_divide[1];
+    let tables_rect = content_area;
+
+    let input = Paragraph::new(app.input.as_ref())
+        .style(default_style.add_modifier(Modifier::SLOW_BLINK))
+        .block(Block::default().borders(Borders::ALL).title("Command Prompt"));
+
+    f.render_widget(input, prompt_rect);
 
     if (app.conjugation_table_open()) {
-        let reversed_style = Style::default().add_modifier(Modifier::REVERSED);
+        let reversed_style = default_style.add_modifier(Modifier::REVERSED);
         let header_cells = app.table_data.header.clone();
         let header = Row::new(header_cells)
             .style(reversed_style)
@@ -198,8 +230,22 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
                 Constraint::Percentage(50),
                 Constraint::Length(30),
                 Constraint::Min(10),
-            ]);
+            ])
+            .style(default_style);
 
-        f.render_stateful_widget(current_conjugation_table, chunks[1], &mut app.state);
+        f.render_stateful_widget(current_conjugation_table, tables_rect, &mut app.state);
     }
+
+    let guage = Gauge::default()
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .style(default_style)
+                .title("Loading")
+        )
+        .gauge_style(default_style.add_modifier(Modifier::ITALIC))
+        .percent(70);
+
+    f.render_widget(guage, guage_rect);
+
 }
