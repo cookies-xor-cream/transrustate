@@ -10,9 +10,9 @@ use crossterm::{
 use std::{error::Error, io};
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Layout, Direction},
+    layout::{Constraint, Layout, Direction, Alignment},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Cell, Row, Table, TableState, Paragraph, Gauge},
+    widgets::{Block, Borders, Cell, Row, Table, TableState, Paragraph, Gauge, Wrap},
     Frame, Terminal,
 };
 
@@ -65,6 +65,9 @@ impl App {
     }
 
     fn set_verb(&mut self) {
+        // TODO: make async work
+        // https://monkeypatch.io/blog/2021/2021-05-31-rust-tui/
+
         self.remove_prefix();
         let verb: String = self.input.drain(..).collect();
         self.conjugations = VerbConjugations::get_conjugation_tables(verb.as_str(), self.language.as_str());
@@ -164,11 +167,6 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Resu
 }
 
 pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    // let groups = Group::default()
-    //     .direction(Direction::Vertical)
-    //     .margin(0)
-    //     .sizes(&[Size::Percent(50), Size::Percent(50)]);
-
     let default_style = Style::default().fg(Color::Yellow).bg(Color::Black);
 
     let screen_block = Block::default().style(default_style);
@@ -179,6 +177,7 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .constraints(
             [
                 Constraint::Length(3),
+                Constraint::Length(3),
                 Constraint::Percentage(90),
             ]
             .as_ref()
@@ -187,7 +186,8 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .split(f.size());
 
     let top_bar_area = vertical_divide[0];
-    let content_area = vertical_divide[1];
+    let error_display_area = vertical_divide[1];
+    let content_area = vertical_divide[2];
 
     let top_bar_divide = Layout::default()
         .direction(Direction::Horizontal)
@@ -210,6 +210,25 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .block(Block::default().borders(Borders::ALL).title("Command Prompt"));
 
     f.render_widget(input, prompt_rect);
+
+    let guage = Gauge::default()
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .style(default_style)
+                .title("Loading")
+        )
+        .gauge_style(default_style.add_modifier(Modifier::ITALIC))
+        .percent(70);
+
+    f.render_widget(guage, guage_rect);
+
+    let error_display = Paragraph::new("Some error has occurred")
+        .block(Block::default().title("Error Message").borders(Borders::ALL).style(default_style.fg(Color::Red)))
+        .style(default_style.fg(Color::Red))
+        .wrap(Wrap { trim: true });
+
+    f.render_widget(error_display, error_display_area);
 
     if (app.conjugation_table_open()) {
         let reversed_style = default_style.add_modifier(Modifier::REVERSED);
@@ -241,17 +260,4 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
         f.render_stateful_widget(current_conjugation_table, tables_rect, &mut app.state);
     }
-
-    let guage = Gauge::default()
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .style(default_style)
-                .title("Loading")
-        )
-        .gauge_style(default_style.add_modifier(Modifier::ITALIC))
-        .percent(70);
-
-    f.render_widget(guage, guage_rect);
-
 }
