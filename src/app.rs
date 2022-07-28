@@ -16,6 +16,8 @@ use tui::{
     Frame, Terminal,
 };
 
+use crate::wordreference::wordreference_utils;
+
 pub struct TableData {
     title: String,
     header: Vec<String>,
@@ -38,24 +40,39 @@ pub struct App {
     table_data: TableData,
     input: String,
     current_table: usize,
+    language: String,
 }
 
 impl App {
-    pub fn new(conj: VerbConjugations) -> App {
+    pub fn new() -> App {
         App {
             state: TableState::default(),
-            conjugations: conj,
+            conjugations: VerbConjugations::empty(),
             table_data: TableData::new(),
             input: String::new(),
             current_table: 0,
+            language: "french".to_string(),
         }
     }
 
     fn set_verb(&mut self) {
         let verb: String = self.input.drain(..).collect();
-        self.conjugations = VerbConjugations::get_conjugation_tables(&verb);
+        self.conjugations = VerbConjugations::get_conjugation_tables(verb.as_str(), self.language.as_str());
         self.current_table = 0;
         self.set_table_data();
+    }
+
+    fn set_language(&mut self) {
+        let language: String = self.input.drain(..).collect();
+        self.language = language;
+    }
+
+    fn handle_entry(&mut self) {
+        match self.input.as_str() {
+            "french" => self.set_language(),
+            "italian" => self.set_language(),
+            _ => self.set_verb(),
+        };
     }
 
     fn set_table_data(&mut self) {
@@ -101,7 +118,7 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Resu
                     app.input.pop();
                 }
                 KeyCode::Enter => {
-                    app.set_verb();
+                    app.handle_entry();
                 }
                 KeyCode::Char(c) => {
                     app.input.push(c);

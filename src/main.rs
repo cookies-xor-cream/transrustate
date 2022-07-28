@@ -1,5 +1,6 @@
 mod app;
 mod conjugations;
+mod wordreference;
 
 use app::{App, ui, run_app};
 use crossterm::{
@@ -27,8 +28,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // create app and run it
-    let conjugations = VerbConjugations::get_conjugation_tables(&"etudier");
-    let app = App::new(conjugations);
+    let app = App::new();
     let res = run_app(&mut terminal, app);
 
     // restore terminal

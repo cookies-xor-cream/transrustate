@@ -1,6 +1,8 @@
 use reqwest;
 use scraper::{Html};
 
+use crate::wordreference::wordreference_utils;
+
 pub struct ConjugationTable {
     pub tense: String,
     pub conjugations: Vec<Vec<String>>,
@@ -58,9 +60,16 @@ impl VerbConjugations {
         }
     }
 
-    fn scrape_conjugation_tables(&self, verb: &str) -> Vec<Html> {
-        let mut verb_query_url = "https://www.wordreference.com/conj/frverbs.aspx?v=".to_owned();
-        verb_query_url.push_str(verb);
+    pub fn empty() -> VerbConjugations {
+        VerbConjugations::new()
+    }
+
+    fn scrape_conjugation_tables(&self, verb: &str, language: &str) -> Vec<Html> {
+        let verb_query_url = wordreference_utils::conjugation_url(
+            language.to_string(),
+            verb.to_string(),
+        );
+
         let response = reqwest::blocking::get(
             verb_query_url,
         )
@@ -98,9 +107,9 @@ impl VerbConjugations {
         self.conjugation_tables.push(ConjugationTable::new(cell_values));
     }
 
-    pub fn get_conjugation_tables(verb: &str) -> VerbConjugations {
+    pub fn get_conjugation_tables(verb: &str, language: &str) -> VerbConjugations {
         let mut verb_conjugations = VerbConjugations::new();
-        let tables = verb_conjugations.scrape_conjugation_tables(verb);
+        let tables = verb_conjugations.scrape_conjugation_tables(verb, language);
         for table in tables {
             verb_conjugations.extract_conjugations_from_table(table);
         }
