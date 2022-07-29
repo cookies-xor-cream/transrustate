@@ -7,7 +7,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{error::Error, io};
+use std::{error::Error, io, sync::Arc};
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Layout, Direction, Alignment},
@@ -64,13 +64,16 @@ impl App {
             .collect::<String>();
     }
 
-    fn set_verb(&mut self) {
+    async fn set_verb(&mut self) {
         // TODO: make async work
         // https://monkeypatch.io/blog/2021/2021-05-31-rust-tui/
 
         self.remove_prefix();
         let verb: String = self.input.drain(..).collect();
-        self.conjugations = VerbConjugations::get_conjugation_tables(verb.as_str(), self.language.as_str());
+        self.conjugations = VerbConjugations::get_conjugation_tables(
+            verb.as_str(),
+            self.language.as_str()
+        ).await;
         self.current_table = 0;
         self.set_table_data();
     }
@@ -90,11 +93,11 @@ impl App {
         self.input = "".to_string();
     }
 
-    fn handle_entry(&mut self) {
+    async fn handle_entry(&mut self) {
         let string = self.input.as_str();
         match string {
             _ if string.starts_with("lang") => self.set_language(),
-            _ if string.starts_with("conj") => self.set_verb(),
+            _ if string.starts_with("conj") => self.set_verb().await,
             _ if string.starts_with("help") => self.display_help(),
             _ => self.handle_error(),
         };
@@ -138,8 +141,10 @@ impl App {
     }
 }
 
-pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
+pub async fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &Arc<tokio::sync::Mutex<App>>) -> io::Result<()> {
     loop {
+        let mut app = app.lock().await;
+
         terminal.draw(|f| ui(f, &mut app))?;
 
         if let Event::Key(key) = event::read()? {
@@ -155,7 +160,7 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Resu
                     app.input.pop();
                 }
                 KeyCode::Enter => {
-                    app.handle_entry();
+                    app.handle_entry().await;
                 }
                 KeyCode::Char(c) => {
                     app.input.push(c);

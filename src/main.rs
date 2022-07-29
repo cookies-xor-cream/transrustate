@@ -8,7 +8,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{error::Error, io};
+use std::{error::Error, io, sync::Arc};
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Layout},
@@ -19,7 +19,9 @@ use tui::{
 
 use conjugations::VerbConjugations;
 
-fn start_app() -> Result<(), Box<dyn Error>> {
+async fn start_app() -> Result<(), Box<dyn Error>> {
+    let (sync_io_tx, mut sync_io_rx) = tokio::sync::mpsc::channel::<Event>(100);
+
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -28,8 +30,18 @@ fn start_app() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // create app and run it
-    let app = App::new();
-    let res = run_app(&mut terminal, app);
+    // let app = App::new();
+    let app = Arc::new(tokio::sync::Mutex::new(App::new(/* sync_io_tx.clone() */)));
+    // let app_ui = Arc::clone(&app);
+
+    // tokio::spawn(async move {
+    //     // let mut handler = IoAsyncHandler::new(app);
+    //     // while let Some(io_event) = sync_io_rx.recv().await {
+    //     //     // handler.handle_io_event(io_event).await;
+    //     // }
+    // });
+
+    let res = run_app(&mut terminal, &app).await;
 
     // restore terminal
     disable_raw_mode()?;
@@ -47,6 +59,7 @@ fn start_app() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn main() {
-    start_app();
+#[tokio::main]
+async fn main() {
+    start_app().await;
 }

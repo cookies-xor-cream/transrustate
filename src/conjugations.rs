@@ -64,17 +64,19 @@ impl VerbConjugations {
         VerbConjugations::new()
     }
 
-    fn scrape_conjugation_tables(&self, verb: &str, language: &str) -> Vec<Html> {
+    async fn scrape_conjugation_tables(&self, verb: &str, language: &str) -> Vec<Html> {
         let verb_query_url = wordreference_utils::conjugation_url(
             language.to_string(),
             verb.to_string(),
         );
 
-        let response = reqwest::blocking::get(
+        let response = reqwest::get(
             verb_query_url,
         )
+            .await
             .unwrap()
             .text()
+            .await
             .unwrap();
 
         let document = scraper::Html::parse_document(&response);
@@ -107,9 +109,9 @@ impl VerbConjugations {
         self.conjugation_tables.push(ConjugationTable::new(cell_values));
     }
 
-    pub fn get_conjugation_tables(verb: &str, language: &str) -> VerbConjugations {
+    pub async fn get_conjugation_tables(verb: &str, language: &str) -> VerbConjugations {
         let mut verb_conjugations = VerbConjugations::new();
-        let tables = verb_conjugations.scrape_conjugation_tables(verb, language);
+        let tables = verb_conjugations.scrape_conjugation_tables(verb, language).await;
         for table in tables {
             verb_conjugations.extract_conjugations_from_table(table);
         }
