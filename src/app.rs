@@ -1,4 +1,4 @@
-use crate::conjugations::VerbConjugations;
+use crate::{conjugations::VerbConjugations, app_event::{AppEvent, Events}};
 
 use reqwest;
 use scraper::{ElementRef, Html};
@@ -7,7 +7,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{error::Error, io, sync::Arc};
+use std::{error::Error, io, sync::Arc, time::Duration};
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Layout, Direction, Alignment},
@@ -39,13 +39,15 @@ pub struct App {
     state: TableState,
     conjugations: VerbConjugations,
     table_data: TableData,
-    input: String,
+    pub input: String,
     current_table: usize,
     language: String,
+    io_tx: tokio::sync::mpsc::Sender<AppEvent>,
+    closed: bool,
 }
 
 impl App {
-    pub fn new() -> App {
+    pub fn new(io_tx: tokio::sync::mpsc::Sender<AppEvent>) -> App {
         let default_language = "french".to_string();
         App {
             state: TableState::default(),
@@ -54,7 +56,22 @@ impl App {
             input: String::new(),
             current_table: 0,
             language: default_language,
+            io_tx,
+            closed: false,
         }
+    }
+
+    pub fn close(&mut self) {
+        self.closed = true;
+    }
+
+    pub async fn dispatch(&mut self, action: AppEvent) {
+        // `is_loading` will be set to false again after the async action has finished in io/handler.rs
+        // self.is_loading = true;
+        if let Err(e) = self.io_tx.send(action).await {
+            // self.is_loading = false;
+            // error!("Error from dispatch {}", e);
+        };
     }
 
     fn remove_prefix(&mut self) {
@@ -93,7 +110,7 @@ impl App {
         self.input = "".to_string();
     }
 
-    async fn handle_entry(&mut self) {
+    pub async fn handle_entry(&mut self) {
         let string = self.input.as_str();
         match string {
             _ if string.starts_with("lang") => self.set_language(),
@@ -122,7 +139,7 @@ impl App {
         self.conjugations.conjugation_tables.len() > 0
     }
 
-    fn next(&mut self) {
+    pub fn next(&mut self) {
         let num_tables = self.conjugations.conjugation_tables.len();
 
         if num_tables > 0 {
@@ -131,7 +148,7 @@ impl App {
         }
     }
 
-    fn prev(&mut self) {
+    pub fn prev(&mut self) {
         let num_tables = self.conjugations.conjugation_tables.len();
 
         if num_tables > 0 {
@@ -142,31 +159,20 @@ impl App {
 }
 
 pub async fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &Arc<tokio::sync::Mutex<App>>) -> io::Result<()> {
+    let tick_rate = Duration::from_millis(100);
+    let events = Events::new(tick_rate);
+
     loop {
         let mut app = app.lock().await;
 
         terminal.draw(|f| ui(f, &mut app))?;
 
-        if let Event::Key(key) = event::read()? {
-            match key.code {
-                KeyCode::Esc => return Ok(()),
-                KeyCode::Right => {
-                    app.next();
-                }
-                KeyCode::Left => {
-                    app.prev();
-                }
-                KeyCode::Backspace => {
-                    app.input.pop();
-                }
-                KeyCode::Enter => {
-                    app.handle_entry().await;
-                }
-                KeyCode::Char(c) => {
-                    app.input.push(c);
-                }
-                _ => {}
-            }
+        match events.next().unwrap() {
+            key_event => app.dispatch(key_event).await
+        };
+
+        if app.closed {
+            return Ok(());
         }
     }
 }
