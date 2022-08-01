@@ -4,26 +4,17 @@ mod wordreference;
 mod app_event;
 mod lookup_event;
 
-use app::{App, ui, run_app};
+use app::{App, run_app};
 use app_event::{AppEventHandler, AppEvent};
+use lookup_event::{LookupEventHandler, LookupEvent};
+
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use lookup_event::{LookupEventHandler, LookupEvent};
 use std::{error::Error, io, sync::Arc, process::exit};
-use tui::{
-    backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Layout},
-    style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Cell, Row, Table, TableState},
-    Frame, Terminal,
-};
-
-use std::io::Write;
-
-use conjugations::VerbConjugations;
+use tui::{backend::CrosstermBackend, Terminal,};
 
 async fn start_app() -> Result<(), Box<dyn Error>> {
     let (sync_io_tx, mut sync_io_rx) = tokio::sync::mpsc::channel::<AppEvent>(512);
@@ -63,7 +54,7 @@ async fn start_app() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    let res = run_app(&mut terminal, &app_ui).await;
+    run_app(&mut terminal, &app_ui).await?;
 
     // restore terminal
     disable_raw_mode()?;
@@ -73,10 +64,6 @@ async fn start_app() -> Result<(), Box<dyn Error>> {
         DisableMouseCapture
     )?;
     terminal.show_cursor()?;
-
-    if let Err(err) = res {
-        println!("{:?}", err)
-    }
 
     Ok(())
 }

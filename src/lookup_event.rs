@@ -1,6 +1,4 @@
-use std::{sync::{Arc}, time::Duration};
-
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::Arc;
 
 use crate::{app::App, conjugations::VerbConjugations};
 

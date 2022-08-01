@@ -1,23 +1,20 @@
-use crate::{conjugations::VerbConjugations, app_event::{AppEvent, AppEvents}, lookup_event::{LookupEventHandler, LookupEvent}};
-
-use reqwest;
-use scraper::{ElementRef, Html};
-use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+use crate::{
+    conjugations::VerbConjugations,
+    app_event::{
+        AppEvent,
+        AppEvents
+    },
+    lookup_event::LookupEvent
 };
-use std::{error::Error, io, sync::Arc, time::Duration};
+
+use std::{io, sync::Arc, time::Duration};
 use tui::{
-    backend::{Backend, CrosstermBackend},
+    backend::{Backend},
     layout::{Constraint, Layout, Direction, Alignment},
     style::{Color, Modifier, Style},
     widgets::{Block, Borders, Cell, Row, Table, TableState, Paragraph, Gauge, Wrap},
     Frame, Terminal,
 };
-
-
-use crate::wordreference::wordreference_utils;
 
 pub struct TableData {
     title: String,
@@ -195,9 +192,6 @@ pub async fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &Arc<tokio::sy
             },
             AppEvent::Tick => {
                 app.dispatch_io(AppEvent::Tick).await;
-            },
-            AppEvent::Close => {
-                app.dispatch_io(AppEvent::Close).await;
             },
         };
 

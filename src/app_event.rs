@@ -1,10 +1,6 @@
 use std::{time::Duration, sync::Arc};
-use crossterm::event::{Event, KeyEvent, self, KeyCode};
-use tokio::io::AsyncWriteExt;
+use crossterm::event::{KeyEvent, self, KeyCode};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-
-use tokio::fs::File;
-use std::io::Write;
 
 use crate::app::App;
 
@@ -12,7 +8,6 @@ use crate::app::App;
 pub enum AppEvent {
     Input(KeyEvent),
     Tick,
-    Close,
 }
 
 pub struct AppEvents {
@@ -68,18 +63,11 @@ impl AppEventHandler {
         let result = match app_event {
             AppEvent::Input(chr) => self.handle_input_event(chr).await,
             AppEvent::Tick => self.update_on_tick().await,
-            AppEvent::Close => self.handle_close().await,
         };
     }
 
     async fn update_on_tick(&mut self) -> Result<(), ()> {
         let mut app = self.app.lock().await;
-        Ok(())
-    }
-
-    async fn handle_close(&mut self) -> Result<(), ()> {
-        let mut app = self.app.lock().await;
-        app.close();
         Ok(())
     }
 
