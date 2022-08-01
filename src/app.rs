@@ -159,22 +159,29 @@ impl App {
 }
 
 pub async fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &Arc<tokio::sync::Mutex<App>>) -> io::Result<()> {
-    let tick_rate = Duration::from_millis(100);
-    let events = Events::new(tick_rate);
+    let tick_rate = Duration::from_millis(200);
+    let mut events = Events::new(tick_rate);
 
     loop {
         let mut app = app.lock().await;
 
         terminal.draw(|f| ui(f, &mut app))?;
 
-        match events.next().unwrap() {
-            key_event => app.dispatch(key_event).await
+        match events.next().await.unwrap() {
+            AppEvent::Input(key_event) => {
+                app.dispatch(AppEvent::Input(key_event)).await;
+            },
+            AppEvent::Tick => {
+                app.dispatch(AppEvent::Tick).await;
+            }
         };
 
         if app.closed {
-            return Ok(());
+            break;
         }
     }
+
+    Ok(())
 }
 
 pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
