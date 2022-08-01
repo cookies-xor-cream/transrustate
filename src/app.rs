@@ -1,4 +1,4 @@
-use crate::{conjugations::VerbConjugations, app_event::{AppEvent, Events}, lookup_event::{LookupEventHandler, LookupEvent}};
+use crate::{conjugations::VerbConjugations, app_event::{AppEvent, AppEvents}, lookup_event::{LookupEventHandler, LookupEvent}};
 
 use reqwest;
 use scraper::{ElementRef, Html};
@@ -70,13 +70,19 @@ impl App {
         self.closed = true;
     }
 
-    pub async fn dispatch(&mut self, action: AppEvent) {
+    pub async fn dispatch_io(&mut self, action: AppEvent) {
         // `is_loading` will be set to false again after the async action has finished in io/handler.rs
         // self.is_loading = true;
         if let Err(e) = self.io_tx.send(action).await {
             // self.is_loading = false;
-            // error!("Error from dispatch {}", e);
+            // error!("Error from dispatch_io {}", e);
         };
+    }
+
+    pub async fn dispatch_lookup(&mut self, action: LookupEvent) {
+        if let Err(e) = self.lookup_tx.send(action).await {
+        };
+
     }
 
     fn remove_prefix(&mut self) {
@@ -86,7 +92,7 @@ impl App {
             .collect::<String>();
     }
 
-    async fn set_verb(&mut self) {
+    pub async fn set_verb(&mut self) {
         // TODO: make async work
         // https://monkeypatch.io/blog/2021/2021-05-31-rust-tui/
 
@@ -119,7 +125,7 @@ impl App {
         let string = self.input.as_str();
         match string {
             _ if string.starts_with("lang") => self.set_language(),
-            _ if string.starts_with("conj") => self.set_verb().await,
+            _ if string.starts_with("conj") => self.dispatch_lookup(LookupEvent::Verb("parler".to_string())).await, // self.set_verb().await,
             _ if string.starts_with("help") => self.display_help(),
             _ => self.handle_error(),
         };
@@ -165,23 +171,23 @@ impl App {
 
 pub async fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &Arc<tokio::sync::Mutex<App>>) -> io::Result<()> {
     let tick_rate = Duration::from_millis(17);
-    let mut events = Events::new(tick_rate);
+    let mut app_events = AppEvents::new(tick_rate);
 
     loop {
         let mut app = app.lock().await;
 
         terminal.draw(|f| ui(f, &mut app))?;
 
-        match events.next().await.unwrap() {
+        match app_events.next().await.unwrap() {
             AppEvent::Input(key_event) => {
-                app.dispatch(AppEvent::Input(key_event)).await;
+                app.dispatch_io(AppEvent::Input(key_event)).await;
             },
             AppEvent::Tick => {
-                app.dispatch(AppEvent::Tick).await;
-            }
+                app.dispatch_io(AppEvent::Tick).await;
+            },
             AppEvent::Close => {
-                app.dispatch(AppEvent::Close).await;
-            }
+                app.dispatch_io(AppEvent::Close).await;
+            },
         };
 
         if app.closed {

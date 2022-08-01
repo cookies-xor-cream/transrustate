@@ -1,4 +1,6 @@
-use std::sync::Arc;
+use std::{sync::{Arc}, time::Duration};
+
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 use crate::app::App;
 
@@ -23,7 +25,7 @@ impl LookupEventHandler {
 
     async fn handle_verb_lookup(&mut self, verb: String) -> Result<(), ()> {
         let mut app = self.app.lock().await;
-        todo!("implement verb lookup on a different thread");
+        app.set_verb().await;
         Ok(())
     }
 }

@@ -15,13 +15,13 @@ pub enum AppEvent {
     Close,
 }
 
-pub struct Events {
+pub struct AppEvents {
     rx: Receiver<AppEvent>,
     _tx: Sender<AppEvent>,
 }
 
-impl Events {
-    pub fn new(tick_rate: Duration) -> Events {
+impl AppEvents {
+    pub fn new(tick_rate: Duration) -> AppEvents {
         let (tx, rx) = channel(512);
 
         let event_tx = tx.clone(); // the thread::spawn own event_tx 
@@ -42,7 +42,7 @@ impl Events {
             }
         });
 
-        Events {
+        AppEvents {
             rx,
             _tx: tx
         }
