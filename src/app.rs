@@ -37,11 +37,11 @@ impl TableData {
 
 pub struct App {
     state: TableState,
-    conjugations: VerbConjugations,
-    table_data: TableData,
+    pub conjugations: VerbConjugations,
+    pub table_data: TableData,
     pub input: String,
-    current_table: usize,
-    language: String,
+    pub current_table: usize,
+    pub language: String,
     io_tx: tokio::sync::mpsc::Sender<AppEvent>,
     lookup_tx: tokio::sync::mpsc::Sender<LookupEvent>,
     closed: bool,
@@ -68,6 +68,17 @@ impl App {
 
     pub fn close(&mut self) {
         self.closed = true;
+    }
+
+    pub fn command_body(&self) -> String {
+        self.input
+            .split(" ")
+            .skip(1)
+            .collect::<String>()
+    }
+
+    pub fn clear_input(&mut self) {
+        self.input = "".to_string();
     }
 
     pub async fn dispatch_io(&mut self, action: AppEvent) {
@@ -131,7 +142,7 @@ impl App {
         };
     }
 
-    fn set_table_data(&mut self) {
+    pub fn set_table_data(&mut self) {
         if self.conjugations.conjugation_tables.len() > self.current_table {
             let items = self.conjugations.conjugation_tables[self.current_table].conjugations_as_strings();
             let tense = (&self.conjugations.conjugation_tables[self.current_table].tense).clone();
