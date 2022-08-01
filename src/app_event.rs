@@ -12,6 +12,7 @@ use crate::app::App;
 pub enum AppEvent {
     Input(KeyEvent),
     Tick,
+    Close,
 }
 
 pub struct Events {
@@ -28,7 +29,8 @@ impl Events {
             loop {
                 // poll for tick rate duration, if no event, sent tick event.
                 if crossterm::event::poll(tick_rate).unwrap() {
-                    if let event::Event::Key(key) = event::read().unwrap() {
+                    let event = event::read().unwrap();
+                    if let event::Event::Key(key) = event {
                         let key = KeyEvent::from(key);
                         event_tx.send(AppEvent::Input(key)).await;
                     } else {
@@ -66,12 +68,18 @@ impl AppEventHandler {
         let result = match app_event {
             AppEvent::Input(chr) => self.handle_input_event(chr).await,
             AppEvent::Tick => self.update_on_tick().await,
+            AppEvent::Close => self.handle_close().await,
         };
     }
 
     async fn update_on_tick(&mut self) -> Result<(), ()> {
         let mut app = self.app.lock().await;
-        app.c += 1;
+        Ok(())
+    }
+
+    async fn handle_close(&mut self) -> Result<(), ()> {
+        let mut app = self.app.lock().await;
+        app.close();
         Ok(())
     }
 
@@ -90,7 +98,7 @@ impl AppEventHandler {
                 app.input.pop();
             }
             KeyCode::Enter => {
-                // app.handle_entry().await;
+                app.handle_entry().await;
             }
             KeyCode::Char(c) => {
                 app.input.push(c);

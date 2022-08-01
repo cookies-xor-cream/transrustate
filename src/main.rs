@@ -19,10 +19,13 @@ use tui::{
     Frame, Terminal,
 };
 
+use std::io::Write;
+
 use conjugations::VerbConjugations;
 
 async fn start_app() -> Result<(), Box<dyn Error>> {
-    let (sync_io_tx, mut sync_io_rx) = tokio::sync::mpsc::channel::<AppEvent>(100);
+    let (sync_io_tx, mut sync_io_rx) = tokio::sync::mpsc::channel::<AppEvent>(512);
+    let (sync_lookup_tx, mut sync_lookup_rx) = tokio::sync::mpsc::channel::<AppEvent>(512);
 
     // setup terminal
     enable_raw_mode()?;
