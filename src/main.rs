@@ -12,7 +12,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use lookup_event::{LookupEventHandler, LookupEvent};
-use std::{error::Error, io, sync::Arc};
+use std::{error::Error, io, sync::Arc, process::exit};
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Layout},
@@ -83,5 +83,10 @@ async fn start_app() -> Result<(), Box<dyn Error>> {
 
 #[tokio::main]
 async fn main() {
-    start_app().await;
+    if let Err(err) = start_app().await {
+        eprintln!("{}", err);
+        exit(1);
+    } else {
+        exit(0);
+    }
 }

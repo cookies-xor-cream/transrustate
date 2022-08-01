@@ -181,7 +181,7 @@ impl App {
 }
 
 pub async fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &Arc<tokio::sync::Mutex<App>>) -> io::Result<()> {
-    let tick_rate = Duration::from_millis(17);
+    let tick_rate = Duration::from_millis(200);
     let mut app_events = AppEvents::new(tick_rate);
 
     loop {
