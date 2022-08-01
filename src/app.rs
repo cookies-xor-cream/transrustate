@@ -1,4 +1,4 @@
-use crate::{conjugations::VerbConjugations, app_event::{AppEvent, Events}};
+use crate::{conjugations::VerbConjugations, app_event::{AppEvent, Events}, lookup_event::{LookupEventHandler, LookupEvent}};
 
 use reqwest;
 use scraper::{ElementRef, Html};
@@ -43,11 +43,15 @@ pub struct App {
     current_table: usize,
     language: String,
     io_tx: tokio::sync::mpsc::Sender<AppEvent>,
+    lookup_tx: tokio::sync::mpsc::Sender<LookupEvent>,
     closed: bool,
 }
 
 impl App {
-    pub fn new(io_tx: tokio::sync::mpsc::Sender<AppEvent>) -> App {
+    pub fn new(
+        io_tx: tokio::sync::mpsc::Sender<AppEvent>,
+        lookup_tx: tokio::sync::mpsc::Sender<LookupEvent>,
+    ) -> App {
         let default_language = "french".to_string();
         App {
             state: TableState::default(),
@@ -57,6 +61,7 @@ impl App {
             current_table: 0,
             language: default_language,
             io_tx,
+            lookup_tx,
             closed: false,
         }
     }
