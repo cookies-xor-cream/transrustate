@@ -1,4 +1,4 @@
-use std::{time::Duration, sync::Arc};
+use std::{time::Duration, sync::Arc, process::exit};
 use crossterm::event::{KeyEvent, self, KeyCode};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
@@ -27,12 +27,21 @@ impl AppEvents {
                     let event = event::read().unwrap();
                     if let event::Event::Key(key) = event {
                         let key = KeyEvent::from(key);
-                        event_tx.send(AppEvent::Input(key)).await;
+                        if let Err(err) = event_tx.send(AppEvent::Input(key)).await {
+                            println!("Send App Input Failed, connection is closed? {}", err);
+                            exit(1);
+                        }
                     } else {
-                        event_tx.send(AppEvent::Tick).await;
+                        if let Err(err) = event_tx.send(AppEvent::Tick).await {
+                            println!("Send App Tick Failed, connection is closed? {}", err);
+                            exit(1);
+                        }
                     }
                 } else {
-                    event_tx.send(AppEvent::Tick).await;
+                    if let Err(err) = event_tx.send(AppEvent::Tick).await {
+                        println!("Send App Tick Failed, connection is closed? {}", err);
+                        exit(1);
+                    }
                 }
             }
         });
@@ -60,18 +69,21 @@ impl AppEventHandler {
     }
 
     pub async fn handle_app_event(&mut self, app_event: AppEvent) {
-        let result = match app_event {
-            AppEvent::Input(chr) => self.handle_input_event(chr).await,
-            AppEvent::Tick => self.update_on_tick().await,
+        match app_event {
+            AppEvent::Input(chr) => {
+                self.handle_input_event(chr).await;
+            },
+            AppEvent::Tick => {
+                self.update_on_tick().await;
+            },
         };
     }
 
-    async fn update_on_tick(&mut self) -> Result<(), ()> {
-        let mut app = self.app.lock().await;
-        Ok(())
+    async fn update_on_tick(&mut self) {
+        let mut _app = self.app.lock().await;
     }
 
-    async fn handle_input_event(&mut self, input: KeyEvent) -> Result<(), ()> {
+    async fn handle_input_event(&mut self, input: KeyEvent) {
         let mut app = self.app.lock().await;
 
         match input.code {
@@ -93,7 +105,5 @@ impl AppEventHandler {
             }
             _ => {}
         }
-
-        Ok(())
     }
 }

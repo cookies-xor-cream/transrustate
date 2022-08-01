@@ -79,16 +79,12 @@ impl App {
     }
 
     pub async fn dispatch_io(&mut self, action: AppEvent) {
-        // `is_loading` will be set to false again after the async action has finished in io/handler.rs
-        // self.is_loading = true;
-        if let Err(e) = self.io_tx.send(action).await {
-            // self.is_loading = false;
-            // error!("Error from dispatch_io {}", e);
+        if let Err(_err) = self.io_tx.send(action).await {
         };
     }
 
     pub async fn dispatch_lookup(&mut self, action: LookupEvent) {
-        if let Err(e) = self.lookup_tx.send(action).await {
+        if let Err(_err) = self.lookup_tx.send(action).await {
         };
 
     }
@@ -101,17 +97,7 @@ impl App {
     }
 
     pub async fn set_verb(&mut self) {
-        // TODO: make async work
-        // https://monkeypatch.io/blog/2021/2021-05-31-rust-tui/
-
-        self.remove_prefix();
-        let verb: String = self.input.drain(..).collect();
-        self.conjugations = VerbConjugations::get_conjugation_tables(
-            verb.as_str(),
-            self.language.as_str()
-        ).await;
-        self.current_table = 0;
-        self.set_table_data();
+        self.dispatch_lookup(LookupEvent::Verb).await;
     }
 
     fn set_language(&mut self) {
@@ -126,14 +112,14 @@ impl App {
 
     fn handle_error(&mut self) {
         // TODO
-        self.input = "".to_string();
+        self.clear_input()
     }
 
     pub async fn handle_entry(&mut self) {
         let string = self.input.as_str();
         match string {
             _ if string.starts_with("lang") => self.set_language(),
-            _ if string.starts_with("conj") => self.dispatch_lookup(LookupEvent::Verb("parler".to_string())).await, // self.set_verb().await,
+            _ if string.starts_with("conj") => self.set_verb().await,
             _ if string.starts_with("help") => self.display_help(),
             _ => self.handle_error(),
         };
@@ -267,7 +253,7 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     f.render_widget(error_display, error_display_area);
 
-    if (app.conjugation_table_open()) {
+    if app.conjugation_table_open() {
         let reversed_style = default_style.add_modifier(Modifier::REVERSED);
         let header_cells = app.table_data.header.clone();
         let header = Row::new(header_cells)
