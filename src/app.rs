@@ -84,12 +84,11 @@ impl App {
     pub fn set_conjugations(&mut self, conjugations: VerbConjugations) {
         self.conjugations = conjugations;
         self.current_table = 0;
-        self.set_table_data();
+        self.load_conjugation_tables();
     }
 
     pub fn set_error(&mut self, error: UserError) {
         self.error = error.message;
-        self.clear_tables();
     }
 
     pub fn clear_error(&mut self) {
@@ -150,7 +149,32 @@ impl App {
     }
 
     fn display_help(&mut self) {
-        // TODO
+        self.clear_tables();
+
+        let title = "Help Table".to_string();
+        let header = vec!["command".to_string(), "description".to_string()];
+        let items = vec![
+            vec![
+                "help".to_string(),
+                "lists available commands".to_string(),
+            ],
+            vec![
+                "lang <language>".to_string(),
+                "change the currently set language".to_string(),
+            ],
+            vec![
+                "conj <verb>".to_string(),
+                "conjugate a verb in the current language".to_string(),
+            ],
+        ];
+        let help_table = TableData {
+            title,
+            header,
+            items,
+        };
+
+        self.table_data = help_table;
+        self.clear_input();
     }
 
     fn handle_error(&mut self) {
@@ -167,6 +191,7 @@ impl App {
     }
 
     pub async fn handle_entry(&mut self) {
+        self.clear_error();
         let string = self.input.as_str();
         match string {
             _ if string.starts_with("lang") => self.set_language(),
@@ -176,10 +201,13 @@ impl App {
         };
     }
 
-    pub fn set_table_data(&mut self) {
+    pub fn load_conjugation_tables(&mut self) {
         if self.conjugations.conjugation_tables.len() > self.current_table {
-            let items = self.conjugations.conjugation_tables[self.current_table].conjugations_as_strings();
-            let tense = (&self.conjugations.conjugation_tables[self.current_table].tense).clone();
+            let items = self.conjugations
+                .conjugation_tables[self.current_table]
+                .conjugations_as_strings();
+            let tense = (&self.conjugations.conjugation_tables[self.current_table].tense)
+                .clone();
             self.table_data = TableData {
                 title: tense,
                 header: vec![
@@ -195,12 +223,16 @@ impl App {
         self.conjugations.conjugation_tables.len() > 0
     }
 
+    fn table_open(&self) -> bool {
+        self.table_data.title.len() > 0
+    }
+
     pub fn next(&mut self) {
         let num_tables = self.conjugations.conjugation_tables.len();
 
         if num_tables > 0 {
             self.current_table = (self.current_table + 1) % num_tables;
-            self.set_table_data();
+            self.load_conjugation_tables();
         }
     }
 
@@ -209,7 +241,7 @@ impl App {
 
         if num_tables > 0 {
             self.current_table = (self.current_table + num_tables - 1) % num_tables;
-            self.set_table_data();
+            self.load_conjugation_tables();
         }
     }
 }
@@ -251,8 +283,7 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .constraints(
             [
                 Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Percentage(90),
+                Constraint::Percentage(100),
             ]
             .as_ref()
         )
@@ -260,8 +291,7 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .split(f.size());
 
     let top_bar_area = vertical_divide[0];
-    let error_display_area = vertical_divide[1];
-    let content_area = vertical_divide[2];
+    let page_body_area = vertical_divide[1];
 
     let top_bar_divide = Layout::default()
         .direction(Direction::Horizontal)
@@ -272,12 +302,27 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
             ]
             .as_ref()
         )
-        // .margin(5)
         .split(top_bar_area);
+
+        let content_area = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(
+                [
+                    Constraint::Length(3),
+                    Constraint::Percentage(100),
+                ]
+                .as_ref()
+            )
+            .split(page_body_area);
 
     let prompt_rect = top_bar_divide[0];
     let guage_rect = top_bar_divide[1];
-    let tables_rect = content_area;
+
+    let error_display_area = content_area[0];
+    let tables_rect = match app.error.len() {
+        0 => page_body_area,
+        _ => content_area[1],
+    };
 
     let input_str = app.get_input();
     let input = Paragraph::new(input_str.as_ref())
@@ -307,7 +352,7 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         f.render_widget(error_display, error_display_area);
     }
 
-    if app.conjugation_table_open() {
+    if app.table_open() {
         let reversed_style = default_style.add_modifier(Modifier::REVERSED);
         let header_cells = app.table_data.header.clone();
         let header = Row::new(header_cells)
@@ -329,9 +374,8 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
                     .title((&app.table_data.title).clone())
             )
             .widths(&[
-                Constraint::Percentage(50),
-                Constraint::Length(30),
-                Constraint::Min(10),
+                Constraint::Percentage(20),
+                Constraint::Percentage(80),
             ])
             .style(default_style);
 

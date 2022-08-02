@@ -16,10 +16,6 @@ impl LookupEventHandler {
     }
 
     pub async fn handle_lookup_event(&mut self, lookup_event: LookupEvent) {
-        let mut app = self.app.lock().await;
-        app.clear_error();
-        drop(app);
-
         match lookup_event {
             LookupEvent::Verb => {
                 self.handle_verb_lookup().await;
