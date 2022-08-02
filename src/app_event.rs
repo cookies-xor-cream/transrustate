@@ -95,13 +95,13 @@ impl AppEventHandler {
                 app.prev();
             }
             KeyCode::Backspace => {
-                app.input.pop();
+                app.pop_char();
             }
             KeyCode::Enter => {
                 app.handle_entry().await;
             }
             KeyCode::Char(c) => {
-                app.input.push(c);
+                app.put_char(c);
             }
             _ => {}
         }

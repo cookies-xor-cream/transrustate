@@ -49,9 +49,7 @@ impl LookupEventHandler {
         ).await;
 
         let mut app_obj = self.app.lock().await;
-        app_obj.conjugations = conjugations?;
-        app_obj.current_table = 0;
-        app_obj.set_table_data();
+        app_obj.set_conjugations(conjugations?);
         Ok(())
     }
 }

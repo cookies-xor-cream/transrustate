@@ -34,10 +34,10 @@ impl TableData {
 
 pub struct App {
     state: TableState,
-    pub conjugations: VerbConjugations,
-    pub table_data: TableData,
-    pub input: String,
-    pub current_table: usize,
+    conjugations: VerbConjugations,
+    table_data: TableData,
+    input: String,
+    current_table: usize,
     pub language: String,
     error: String,
     io_tx: tokio::sync::mpsc::Sender<AppEvent>,
@@ -67,6 +67,24 @@ impl App {
 
     pub fn close(&mut self) {
         self.closed = true;
+    }
+
+    pub fn get_input(&self) -> String {
+        self.input.clone()
+    }
+
+    pub fn pop_char(&mut self) {
+        self.input.pop();
+    }
+
+    pub fn put_char(&mut self, c: char) {
+        self.input.push(c);
+    }
+
+    pub fn set_conjugations(&mut self, conjugations: VerbConjugations) {
+        self.conjugations = conjugations;
+        self.current_table = 0;
+        self.set_table_data();
     }
 
     pub fn set_error(&mut self, error: UserError) {
@@ -114,6 +132,13 @@ impl App {
             .collect::<String>();
     }
 
+    fn command_name(&self) -> String {
+        self.input
+            .split(" ")
+            .take(1)
+            .collect::<String>()
+    }
+
     pub async fn set_verb(&mut self) {
         self.dispatch_lookup(LookupEvent::Verb).await;
     }
@@ -129,7 +154,15 @@ impl App {
     }
 
     fn handle_error(&mut self) {
-        // TODO
+        let command_name = self.command_name();
+        let error = UserError {
+            message: format!(
+                "Command '{command_name}' not found, try 'help' \
+                to see viable commands"
+            )
+        };
+
+        self.set_error(error);
         self.clear_input();
     }
 
@@ -246,7 +279,8 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let guage_rect = top_bar_divide[1];
     let tables_rect = content_area;
 
-    let input = Paragraph::new(app.input.as_ref())
+    let input_str = app.get_input();
+    let input = Paragraph::new(input_str.as_ref())
         .style(default_style.add_modifier(Modifier::SLOW_BLINK))
         .block(Block::default().borders(Borders::ALL).title("Command Prompt"));
 

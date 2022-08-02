@@ -68,13 +68,13 @@ impl VerbConjugations {
         let not_exist_error = UserError {
             message: format!(
                 "The verb '{verb}' does not exist in the selected language \
-                    ({language}). Please double check your spelling",
+                ({language}). Please double check your spelling",
             )
         };
 
         let network_error = UserError {
             message: "Could not find the corresponding verb conjugaitons, \
-                please check your network connection".to_string(),
+            please check your network connection".to_string(),
         };
 
         let verb_query_url = wordreference_utils::conjugation_url(
