@@ -4,7 +4,7 @@ use crate::{
         AppEvent,
         AppEvents
     },
-    lookup_event::LookupEvent
+    lookup_event::LookupEvent, user_error::UserError
 };
 
 use std::{io, sync::Arc, time::Duration};
@@ -69,8 +69,8 @@ impl App {
         self.closed = true;
     }
 
-    pub fn set_error(&mut self, error: String) {
-        self.error = error;
+    pub fn set_error(&mut self, error: UserError) {
+        self.error = error.message;
         self.clear_tables();
     }
 

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{app::App, conjugations::VerbConjugations};
+use crate::{app::App, conjugations::VerbConjugations, user_error::UserError};
 
 pub enum LookupEvent {
     Verb,
@@ -28,13 +28,13 @@ impl LookupEventHandler {
     }
 
     async fn handle_verb_lookup(&mut self) {
-        if let Err(_err) = self.attempt_verb_lookup().await {
+        if let Err(err) = self.attempt_verb_lookup().await {
             let mut app = self.app.lock().await;
-            app.set_error("Test".to_string());
+            app.set_error(err);
         }
     }
 
-    async fn attempt_verb_lookup(&mut self) -> Result<(), ()> {
+    async fn attempt_verb_lookup(&mut self) -> Result<(), UserError> {
         let mut app_obj = self.app.lock().await;
         let verb = app_obj.command_body();
         app_obj.clear_input();

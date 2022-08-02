@@ -1,7 +1,7 @@
 use reqwest;
 use scraper::{Html};
 
-use crate::wordreference::wordreference_utils;
+use crate::{wordreference::wordreference_utils, user_error::UserError};
 
 pub struct ConjugationTable {
     pub tense: String,
@@ -64,7 +64,19 @@ impl VerbConjugations {
         VerbConjugations::new()
     }
 
-    async fn scrape_conjugation_tables(&self, verb: &str, language: &str) -> Result<Vec<Html>, ()> {
+    async fn scrape_conjugation_tables(&self, verb: &str, language: &str) -> Result<Vec<Html>, UserError> {
+        let not_exist_error = UserError {
+            message: format!(
+                "The verb '{verb}' does not exist in the selected language \
+                    ({language}). Please double check your spelling",
+            )
+        };
+
+        let network_error = UserError {
+            message: "Could not find the corresponding verb conjugaitons, \
+                please check your network connection".to_string(),
+        };
+
         let verb_query_url = wordreference_utils::conjugation_url(
             language.to_string(),
             verb.to_string(),
@@ -75,26 +87,38 @@ impl VerbConjugations {
                         )
                             .await {
                     Ok(it) => it,
-                    Err(err) => return Err(()),
+                    Err(_err) => return Err(network_error),
                 }
                     .text()
                     .await {
             Ok(it) => it,
-            Err(err) => return Err(()),
+            Err(_err) => return Err(not_exist_error),
         };
 
         let document = scraper::Html::parse_document(&response);
-        let table_query = scraper::Selector::parse("table.neoConj").unwrap();
+        let table_query = scraper::Selector::parse("table.neoConj")
+            .expect("verb conjugation should have a table with the neoConj class");
         let tables = document
             .select(&table_query)
             .map(|x| scraper::Html::parse_fragment(&x.html()));
 
-        Ok(tables.collect::<Vec<Html>>())
+        let tables = tables.collect::<Vec<Html>>();
+
+        match tables.len() {
+            0 => {
+                Err(not_exist_error)
+            }
+            _ => {
+                Ok(tables)
+            }
+        }
     }
 
     fn extract_conjugations_from_table(&mut self, table: Html) {        
-        let row_query = scraper::Selector::parse("tr").unwrap();
-        let cell_query = scraper::Selector::parse("td, th").unwrap();
+        let row_query = scraper::Selector::parse("tr")
+            .expect("conjugation table should have rows");
+        let cell_query = scraper::Selector::parse("td, th")
+            .expect("conjugation table should have at least one cell or header");
 
         let rows = table.select(&row_query);
 
@@ -113,17 +137,20 @@ impl VerbConjugations {
         self.conjugation_tables.push(ConjugationTable::new(cell_values));
     }
 
-    pub async fn get_conjugation_tables(verb: &str, language: &str) -> Result<VerbConjugations, ()> {
+    pub async fn get_conjugation_tables(verb: &str, language: &str) -> Result<VerbConjugations, UserError> {
         let mut verb_conjugations = VerbConjugations::new();
-        let tables = verb_conjugations.scrape_conjugation_tables(verb, language).await?;
-        for table in tables {
-            verb_conjugations.extract_conjugations_from_table(table);
-        }
+        let tables_result = verb_conjugations.scrape_conjugation_tables(verb, language).await;
+        match tables_result {
+            Err(err) => {
+                Err(err)
+            }
+            Ok(tables) => {
+                for table in tables {
+                    verb_conjugations.extract_conjugations_from_table(table);
+                }
 
-        if verb_conjugations.conjugation_tables.len() == 0 {
-            return Err(());
+                Ok(verb_conjugations)
+            }
         }
-
-        Ok(verb_conjugations)
     }
 }

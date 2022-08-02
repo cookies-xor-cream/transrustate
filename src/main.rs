@@ -3,6 +3,7 @@ mod conjugations;
 mod wordreference;
 mod app_event;
 mod lookup_event;
+mod user_error;
 
 use app::{App, run_app};
 use app_event::{AppEventHandler, AppEvent};
