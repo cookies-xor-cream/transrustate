@@ -64,20 +64,24 @@ impl VerbConjugations {
         VerbConjugations::new()
     }
 
-    async fn scrape_conjugation_tables(&self, verb: &str, language: &str) -> Vec<Html> {
+    async fn scrape_conjugation_tables(&self, verb: &str, language: &str) -> Result<Vec<Html>, ()> {
         let verb_query_url = wordreference_utils::conjugation_url(
             language.to_string(),
             verb.to_string(),
         );
 
-        let response = reqwest::get(
-            verb_query_url,
-        )
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
+        let response = match match reqwest::get(
+                            verb_query_url,
+                        )
+                            .await {
+                    Ok(it) => it,
+                    Err(err) => return Err(()),
+                }
+                    .text()
+                    .await {
+            Ok(it) => it,
+            Err(err) => return Err(()),
+        };
 
         let document = scraper::Html::parse_document(&response);
         let table_query = scraper::Selector::parse("table.neoConj").unwrap();
@@ -85,7 +89,7 @@ impl VerbConjugations {
             .select(&table_query)
             .map(|x| scraper::Html::parse_fragment(&x.html()));
 
-        tables.collect::<Vec<Html>>()
+        Ok(tables.collect::<Vec<Html>>())
     }
 
     fn extract_conjugations_from_table(&mut self, table: Html) {        
@@ -109,13 +113,17 @@ impl VerbConjugations {
         self.conjugation_tables.push(ConjugationTable::new(cell_values));
     }
 
-    pub async fn get_conjugation_tables(verb: &str, language: &str) -> VerbConjugations {
+    pub async fn get_conjugation_tables(verb: &str, language: &str) -> Result<VerbConjugations, ()> {
         let mut verb_conjugations = VerbConjugations::new();
-        let tables = verb_conjugations.scrape_conjugation_tables(verb, language).await;
+        let tables = verb_conjugations.scrape_conjugation_tables(verb, language).await?;
         for table in tables {
             verb_conjugations.extract_conjugations_from_table(table);
         }
 
-        verb_conjugations
+        if verb_conjugations.conjugation_tables.len() == 0 {
+            return Err(());
+        }
+
+        Ok(verb_conjugations)
     }
 }

@@ -16,16 +16,25 @@ impl LookupEventHandler {
     }
 
     pub async fn handle_lookup_event(&mut self, lookup_event: LookupEvent) {
+        let mut app = self.app.lock().await;
+        app.clear_error();
+        drop(app);
+
         match lookup_event {
             LookupEvent::Verb => {
-                if let Err(_err) = self.handle_verb_lookup().await {
-                    // handle error
-                }
+                self.handle_verb_lookup().await;
             },
         };
     }
 
-    async fn handle_verb_lookup(&mut self) -> Result<(), ()> {
+    async fn handle_verb_lookup(&mut self) {
+        if let Err(_err) = self.attempt_verb_lookup().await {
+            let mut app = self.app.lock().await;
+            app.set_error("Test".to_string());
+        }
+    }
+
+    async fn attempt_verb_lookup(&mut self) -> Result<(), ()> {
         let mut app_obj = self.app.lock().await;
         let verb = app_obj.command_body();
         app_obj.clear_input();
@@ -40,7 +49,7 @@ impl LookupEventHandler {
         ).await;
 
         let mut app_obj = self.app.lock().await;
-        app_obj.conjugations = conjugations;
+        app_obj.conjugations = conjugations?;
         app_obj.current_table = 0;
         app_obj.set_table_data();
         Ok(())

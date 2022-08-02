@@ -39,6 +39,7 @@ pub struct App {
     pub input: String,
     pub current_table: usize,
     pub language: String,
+    error: String,
     io_tx: tokio::sync::mpsc::Sender<AppEvent>,
     lookup_tx: tokio::sync::mpsc::Sender<LookupEvent>,
     closed: bool,
@@ -59,12 +60,29 @@ impl App {
             language: default_language,
             io_tx,
             lookup_tx,
+            error: "".to_string(),
             closed: false,
         }
     }
 
     pub fn close(&mut self) {
         self.closed = true;
+    }
+
+    pub fn set_error(&mut self, error: String) {
+        self.error = error;
+        self.clear_tables();
+    }
+
+    pub fn clear_error(&mut self) {
+        self.error = "".to_string();
+    }
+
+    pub fn clear_tables(&mut self) {
+        self.conjugations = VerbConjugations::empty();
+        self.table_data = TableData::new();
+        self.current_table = 0;
+        self.state = TableState::default();
     }
 
     pub fn command_body(&self) -> String {
@@ -112,7 +130,7 @@ impl App {
 
     fn handle_error(&mut self) {
         // TODO
-        self.clear_input()
+        self.clear_input();
     }
 
     pub async fn handle_entry(&mut self) {
@@ -246,12 +264,14 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     f.render_widget(guage, guage_rect);
 
-    let error_display = Paragraph::new("Some error has occurred")
-        .block(Block::default().title("Error Message").borders(Borders::ALL).style(default_style.fg(Color::Red)))
-        .style(default_style.fg(Color::Red))
-        .wrap(Wrap { trim: true });
+    if app.error.len() > 0 {
+        let error_display = Paragraph::new(app.error.as_str())
+            .block(Block::default().title("Error Message").borders(Borders::ALL).style(default_style.fg(Color::Red)))
+            .style(default_style.fg(Color::Red))
+            .wrap(Wrap { trim: true });
 
-    f.render_widget(error_display, error_display_area);
+        f.render_widget(error_display, error_display_area);
+    }
 
     if app.conjugation_table_open() {
         let reversed_style = default_style.add_modifier(Modifier::REVERSED);
