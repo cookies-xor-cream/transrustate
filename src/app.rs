@@ -208,8 +208,9 @@ impl App {
                 .conjugations_as_strings();
             let tense = (&self.conjugations.conjugation_tables[self.current_table].tense)
                 .clone();
+            let verb = self.conjugations.verb.clone();
             self.table_data = TableData {
-                title: tense,
+                title: format!("{verb}:{tense}"),
                 header: vec![
                     "Pronouns".to_string(),
                     "Conjugations".to_string(),

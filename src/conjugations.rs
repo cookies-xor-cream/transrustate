@@ -50,12 +50,14 @@ impl ConjugationTable {
 }
 
 pub struct VerbConjugations {
+    pub verb: String,
     pub conjugation_tables: Vec<ConjugationTable>,
 }
 
 impl VerbConjugations {
     fn new() -> VerbConjugations {
         VerbConjugations {
+            verb: "".to_string(),
             conjugation_tables: Vec::new(),
         }
     }
@@ -148,6 +150,8 @@ impl VerbConjugations {
                 for table in tables {
                     verb_conjugations.extract_conjugations_from_table(table);
                 }
+
+                verb_conjugations.verb = verb.to_string();
 
                 Ok(verb_conjugations)
             }
