@@ -183,6 +183,14 @@ impl App {
                 "change the currently set language".to_string(),
             ],
             vec![
+                "def <word>".to_string(),
+                "gives the definition of the word in the current language".to_string(),
+            ],
+            vec![
+                "trans <word>".to_string(),
+                "translates a word from the current language to english".to_string(),
+            ],
+            vec![
                 "conj <verb>".to_string(),
                 "conjugate a verb in the current language".to_string(),
             ],
