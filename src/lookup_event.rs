@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use crate::{app::App, conjugations::VerbConjugations, user_error::UserError, definitions::get_table_or_smth};
+use crate::{app::App, conjugations::VerbConjugations, user_error::UserError, definitions::get_definition_tables};
 
 pub enum LookupEvent {
     Verb,
     Definition,
+    Translation,
 }
 
 pub struct LookupEventHandler {
@@ -23,6 +24,9 @@ impl LookupEventHandler {
             },
             LookupEvent::Definition => {
                 self.handle_word_definition().await;
+            },
+            LookupEvent::Translation => {
+                self.handle_word_translation().await;
             }
         };
     }
@@ -54,13 +58,42 @@ impl LookupEventHandler {
     }
 
     async fn handle_word_definition(&mut self) {
-        if let Err(err) = self.attempt_word_definition().await {
+        let app_obj = self.app.lock().await;
+        let to_language = app_obj.language.clone();
+        drop(app_obj);
+
+        let from_language = "english".to_string();
+
+        if let Err(err) = self.attempt_word_definition(
+            from_language,
+            to_language,
+        ).await {
             let mut app = self.app.lock().await;
             app.set_error(err);
         }
     }
 
-    async fn attempt_word_definition(&mut self) -> Result<(), UserError> {
+    async fn handle_word_translation(&mut self) {
+        let app_obj = self.app.lock().await;
+        let from_language = app_obj.language.clone();
+        drop(app_obj);
+
+        let to_language = "english".to_string();
+
+        if let Err(err) = self.attempt_word_definition(
+            from_language,
+            to_language,
+        ).await {
+            let mut app = self.app.lock().await;
+            app.set_error(err);
+        }
+    }
+
+    async fn attempt_word_definition(
+        &mut self,
+        to_language: String,
+        from_language: String,
+    ) -> Result<(), UserError> {
         let mut app_obj = self.app.lock().await;
         let word = app_obj.command_body();
         app_obj.clear_input();
@@ -69,7 +102,14 @@ impl LookupEventHandler {
 
         drop(app_obj);
 
-        let tab = get_table_or_smth(language, word).await;
+        let tab = get_definition_tables(
+            to_language,
+            from_language,
+            word
+        )
+            .await
+            .definitions
+            .swap_remove(0);
 
         let mut app_obj = self.app.lock().await;
         app_obj.set_definitions(tab);

@@ -158,6 +158,10 @@ impl App {
         self.dispatch_lookup(LookupEvent::Definition).await;
     }
 
+    pub async fn set_word_translation(&mut self) {
+        self.dispatch_lookup(LookupEvent::Translation).await;
+    }
+
     fn set_language(&mut self) {
         self.remove_prefix();
         let language: String = self.input.drain(..).collect();
@@ -213,6 +217,7 @@ impl App {
             _ if string.starts_with("lang")     => self.set_language(),
             _ if string.starts_with("conj")     => self.set_verb().await,
             _ if string.starts_with("def")      => self.set_word_definition().await,
+            _ if string.starts_with("trans")    => self.set_word_translation().await,
             _ if string.starts_with("help")     => self.display_help(),
             _                                   => self.handle_error(),
         };
@@ -220,6 +225,7 @@ impl App {
 
     pub fn load_conjugation_tables(&mut self) {
         if self.conjugations.conjugation_tables.len() > self.current_table {
+            let language = self.language.clone();
             let items = self.conjugations
                 .conjugation_tables[self.current_table]
                 .conjugations_as_strings();
@@ -227,12 +233,12 @@ impl App {
                 .clone();
             let verb = self.conjugations.verb.clone();
             self.table_data = TableData {
-                title: format!("{verb}:{tense}"),
+                title: format!("{verb}: {tense} {language}"),
                 header: vec![
                     "Pronouns".to_string(),
                     "Conjugations".to_string(),
                 ],
-                items: items,
+                items,
             };
         }
     }
