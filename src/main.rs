@@ -4,6 +4,7 @@ mod wordreference;
 mod app_event;
 mod lookup_event;
 mod user_error;
+mod definitions;
 
 use app::{App, run_app};
 use app_event::{AppEventHandler, AppEvent};
@@ -14,6 +15,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use scraper::ElementRef;
 use std::{error::Error, io, sync::Arc, process::exit};
 use tui::{backend::CrosstermBackend, Terminal,};
 

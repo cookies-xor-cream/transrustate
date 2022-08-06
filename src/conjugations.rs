@@ -1,11 +1,11 @@
 use reqwest;
-use scraper::{Html};
+use scraper::Html;
 
 use crate::{wordreference::wordreference_utils, user_error::UserError};
 
 pub struct ConjugationTable {
     pub tense: String,
-    pub conjugations: Vec<Vec<String>>,
+    pub conjugations: Vec<Vec<String>>, // [[1, 2], [3, 4]]
 }
 
 impl ConjugationTable {

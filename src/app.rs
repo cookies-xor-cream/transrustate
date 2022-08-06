@@ -4,7 +4,7 @@ use crate::{
         AppEvent,
         AppEvents
     },
-    lookup_event::LookupEvent, user_error::UserError
+    lookup_event::LookupEvent, user_error::UserError, definitions::DefinitionTable
 };
 
 use std::{io, sync::Arc, time::Duration};
@@ -82,9 +82,21 @@ impl App {
     }
 
     pub fn set_conjugations(&mut self, conjugations: VerbConjugations) {
+        self.clear_tables();
         self.conjugations = conjugations;
         self.current_table = 0;
         self.load_conjugation_tables();
+    }
+
+    pub fn set_definitions(&mut self, definitions: DefinitionTable) {
+        self.clear_tables();
+        self.table_data = TableData {
+            title: "Define <word>".to_string(),
+            header: definitions.header,
+            items: definitions.definitions,
+        };
+
+        self.current_table = 0;
     }
 
     pub fn set_error(&mut self, error: UserError) {
@@ -142,6 +154,10 @@ impl App {
         self.dispatch_lookup(LookupEvent::Verb).await;
     }
 
+    pub async fn set_word_definition(&mut self) {
+        self.dispatch_lookup(LookupEvent::Definition).await;
+    }
+
     fn set_language(&mut self) {
         self.remove_prefix();
         let language: String = self.input.drain(..).collect();
@@ -194,10 +210,11 @@ impl App {
         self.clear_error();
         let string = self.input.as_str();
         match string {
-            _ if string.starts_with("lang") => self.set_language(),
-            _ if string.starts_with("conj") => self.set_verb().await,
-            _ if string.starts_with("help") => self.display_help(),
-            _ => self.handle_error(),
+            _ if string.starts_with("lang")     => self.set_language(),
+            _ if string.starts_with("conj")     => self.set_verb().await,
+            _ if string.starts_with("def")      => self.set_word_definition().await,
+            _ if string.starts_with("help")     => self.display_help(),
+            _                                   => self.handle_error(),
         };
     }
 
