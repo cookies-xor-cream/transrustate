@@ -18,6 +18,10 @@ impl LookupEventHandler {
     }
 
     pub async fn handle_lookup_event(&mut self, lookup_event: LookupEvent) {
+        let mut app = self.app.lock().await;
+        app.start_load();
+        drop(app);
+
         match lookup_event {
             LookupEvent::Verb => {
                 self.handle_verb_lookup().await;
@@ -29,6 +33,8 @@ impl LookupEventHandler {
                 self.handle_word_translation().await;
             }
         };
+        let mut app = self.app.lock().await;
+        app.end_load();
     }
 
     async fn handle_verb_lookup(&mut self) {

@@ -8,6 +8,7 @@ use crate::{
 };
 
 use std::{io, sync::Arc, time::Duration, cmp::max};
+use tokio::time::Instant;
 use tui::{
     backend::{Backend},
     layout::{Constraint, Layout, Direction, Alignment},
@@ -44,6 +45,8 @@ pub struct App {
     io_tx: tokio::sync::mpsc::Sender<AppEvent>,
     lookup_tx: tokio::sync::mpsc::Sender<LookupEvent>,
     closed: bool,
+    loading: bool,
+    load_start: Instant,
 }
 
 impl App {
@@ -64,7 +67,44 @@ impl App {
             lookup_tx,
             error: "".to_string(),
             closed: false,
+            loading: false,
+            load_start: Instant::now(),
         }
+    }
+
+    pub fn start_load(&mut self) {
+        self.loading = true;
+        self.load_start = Instant::now();
+    }
+
+    pub fn end_load(&mut self) {
+        self.loading = false;
+    }
+
+    fn progress_smoothing(&self, current: u128, max_total: u128) -> f32 {
+        let current = current as f32;
+        let max_total = max_total as f32;
+
+        // uses the sigmoid function to smooth the progress bar
+        let unsmoothed_progress = 4.0 * ((current / max_total) - 0.5);
+        let denominator = 1.0 + (-unsmoothed_progress).exp();
+        let smoothed_progress = 1.0 / denominator;
+
+        100.0 * smoothed_progress
+    }
+
+    pub fn get_progress(&mut self) -> u16 {
+        if !self.loading {
+            return 100;
+        }
+
+        let loaded_for_duration = self.load_start.elapsed();
+        let loaded_for = loaded_for_duration
+            .as_millis();
+
+        let progress = self.progress_smoothing(loaded_for, 3500) as u16;
+
+        progress
     }
 
     pub fn close(&mut self) {
@@ -325,6 +365,9 @@ pub async fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &Arc<tokio::sy
 }
 
 pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
+    let load_percent = app.get_progress();
+    let is_loading = load_percent != 100;
+
     let default_style = Style::default().fg(Color::Yellow).bg(Color::Black);
 
     let screen_block = Block::default().style(default_style);
@@ -367,7 +410,10 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
             )
             .split(page_body_area);
 
-    let prompt_rect = top_bar_divide[0];
+    let prompt_rect = match is_loading {
+        false => top_bar_area,
+        true => top_bar_divide[0],
+    };
     let guage_rect = top_bar_divide[1];
 
     let error_display_area = content_area[0];
@@ -383,17 +429,19 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     f.render_widget(input, prompt_rect);
 
-    let guage = Gauge::default()
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .style(default_style)
-                .title("Loading")
-        )
-        .gauge_style(default_style.add_modifier(Modifier::ITALIC))
-        .percent(70);
+    if is_loading {
+        let guage = Gauge::default()
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .style(default_style)
+                    .title("Loading")
+            )
+            .gauge_style(default_style.add_modifier(Modifier::ITALIC))
+            .percent(load_percent);
 
-    f.render_widget(guage, guage_rect);
+        f.render_widget(guage, guage_rect);
+    }
 
     if app.error.len() > 0 {
         let error_display = Paragraph::new(app.error.as_str())
