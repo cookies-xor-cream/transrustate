@@ -4,10 +4,10 @@ use crate::{
         AppEvent,
         AppEvents
     },
-    lookup_event::LookupEvent, user_error::UserError, definitions::DefinitionTable
+    lookup_event::LookupEvent, user_error::UserError, definitions::{DefinitionTable, WordDefinitions}
 };
 
-use std::{io, sync::Arc, time::Duration};
+use std::{io, sync::Arc, time::Duration, cmp::max};
 use tui::{
     backend::{Backend},
     layout::{Constraint, Layout, Direction, Alignment},
@@ -35,6 +35,7 @@ impl TableData {
 pub struct App {
     state: TableState,
     conjugations: VerbConjugations,
+    definitions: WordDefinitions,
     table_data: TableData,
     input: String,
     current_table: usize,
@@ -54,6 +55,7 @@ impl App {
         App {
             state: TableState::default(),
             conjugations: VerbConjugations::empty(),
+            definitions: WordDefinitions::empty(),
             table_data: TableData::new(),
             input: String::new(),
             current_table: 0,
@@ -88,15 +90,11 @@ impl App {
         self.load_conjugation_tables();
     }
 
-    pub fn set_definitions(&mut self, definitions: DefinitionTable) {
+    pub fn set_definitions(&mut self, definitions: WordDefinitions) {
         self.clear_tables();
-        self.table_data = TableData {
-            title: "Define <word>".to_string(),
-            header: definitions.header,
-            items: definitions.definitions,
-        };
-
+        self.definitions = definitions;
         self.current_table = 0;
+        self.load_definition_tables();
     }
 
     pub fn set_error(&mut self, error: UserError) {
@@ -251,8 +249,15 @@ impl App {
         }
     }
 
-    fn conjugation_table_open(&self) -> bool {
-        self.conjugations.conjugation_tables.len() > 0
+    pub fn load_definition_tables(&mut self) {
+        if self.definitions.definitions.len() > self.current_table {
+            let definitions = &self.definitions.definitions[self.current_table];
+            self.table_data = TableData {
+                title: self.definitions.title.clone(),
+                header: definitions.header.clone(),
+                items: definitions.definitions.clone(),
+            };
+        }
     }
 
     fn table_open(&self) -> bool {
@@ -260,20 +265,35 @@ impl App {
     }
 
     pub fn next(&mut self) {
-        let num_tables = self.conjugations.conjugation_tables.len();
+        let conj_len = self.conjugations.conjugation_tables.len();
+        let def_len = self.definitions.definitions.len();
+        let num_tables = max(conj_len, def_len);
 
         if num_tables > 0 {
             self.current_table = (self.current_table + 1) % num_tables;
-            self.load_conjugation_tables();
+
+            if conj_len > 0 {
+                self.load_conjugation_tables();
+            } else if def_len > 0 {
+                self.load_definition_tables();
+            }
         }
     }
 
     pub fn prev(&mut self) {
-        let num_tables = self.conjugations.conjugation_tables.len();
+        let conj_len = self.conjugations.conjugation_tables.len();
+        let def_len = self.definitions.definitions.len();
+        let num_tables = max(conj_len, def_len);
 
         if num_tables > 0 {
             self.current_table = (self.current_table + num_tables - 1) % num_tables;
             self.load_conjugation_tables();
+
+            if conj_len > 0 {
+                self.load_conjugation_tables();
+            } else if def_len > 0 {
+                self.load_definition_tables();
+            }
         }
     }
 }

@@ -15,13 +15,13 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use scraper::ElementRef;
+use tokio::sync::mpsc::channel;
 use std::{error::Error, io, sync::Arc, process::exit};
 use tui::{backend::CrosstermBackend, Terminal,};
 
 async fn start_app() -> Result<(), Box<dyn Error>> {
-    let (sync_io_tx, mut sync_io_rx) = tokio::sync::mpsc::channel::<AppEvent>(512);
-    let (sync_lookup_tx, mut sync_lookup_rx) = tokio::sync::mpsc::channel::<LookupEvent>(512);
+    let (sync_io_tx, mut sync_io_rx) = channel::<AppEvent>(512);
+    let (sync_lookup_tx, mut sync_lookup_rx) = channel::<LookupEvent>(512);
 
     // setup terminal
     enable_raw_mode()?;

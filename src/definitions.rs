@@ -13,6 +13,15 @@ pub struct WordDefinitions {
     pub definitions: Vec<DefinitionTable>,
 }
 
+impl WordDefinitions {
+    pub fn empty() -> Self {
+        Self {
+            title: "".to_string(),
+            definitions: Vec::new(),
+        }
+    }
+}
+
 pub fn extract_definitions_from_table(
     table: ElementRef,
     to_language: String,
@@ -168,7 +177,7 @@ pub async fn get_definition_tables(
         return Err(not_exist_error);
     }
 
-    let title = format!("Define {word} ({to_language})");
+    let title = format!("Translate '{word}' to {to_language}");
     let word_definitions = WordDefinitions {
         title,
         definitions,

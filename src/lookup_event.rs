@@ -111,12 +111,10 @@ impl LookupEventHandler {
             return Err(user_error);
         }
 
-        let tab = tables?
-            .definitions
-            .swap_remove(0);
+        let tables = tables?;
 
         let mut app_obj = self.app.lock().await;
-        app_obj.set_definitions(tab);
+        app_obj.set_definitions(tables);
         Ok(())
     }
 }
