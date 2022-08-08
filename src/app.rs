@@ -4,7 +4,7 @@ use crate::{
         AppEvent,
         AppEvents
     },
-    lookup_event::LookupEvent, user_error::UserError, definitions::{DefinitionTable, WordDefinitions}
+    lookup_event::LookupEvent, user_error::UserError, definitions::WordDefinitions
 };
 
 use std::{io, sync::Arc, time::Duration, cmp::max};

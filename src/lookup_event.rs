@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use reqwest::Client;
 
-use crate::{app::App, conjugations::VerbConjugations, user_error::UserError, definitions::get_definition_tables};
+use crate::{app::App, conjugations::VerbConjugations, user_error::UserError, definitions::WordDefinitions};
 
 pub enum LookupEvent {
     Verb,
@@ -120,7 +120,7 @@ impl LookupEventHandler {
 
         drop(app_obj);
 
-        let tables = get_definition_tables(
+        let tables = WordDefinitions::get_definition_tables(
             to_language,
             from_language,
             word,
