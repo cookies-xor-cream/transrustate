@@ -38,25 +38,6 @@ impl LookupEventHandler {
         }
     }
 
-    async fn attempt_verb_lookup(&mut self) -> Result<(), UserError> {
-        let mut app_obj = self.app.lock().await;
-        let verb = app_obj.command_body();
-        app_obj.clear_input();
-
-        let language = app_obj.language.clone();
-
-        drop(app_obj);
-
-        let conjugations = VerbConjugations::get_conjugation_tables(
-            verb.as_str(),
-            language.as_str(),
-        ).await;
-
-        let mut app_obj = self.app.lock().await;
-        app_obj.set_conjugations(conjugations?);
-        Ok(())
-    }
-
     async fn handle_word_definition(&mut self) {
         let app_obj = self.app.lock().await;
         let to_language = app_obj.language.clone();
@@ -89,6 +70,25 @@ impl LookupEventHandler {
         }
     }
 
+    async fn attempt_verb_lookup(&mut self) -> Result<(), UserError> {
+        let mut app_obj = self.app.lock().await;
+        let verb = app_obj.command_body();
+        app_obj.clear_input();
+
+        let language = app_obj.language.clone();
+
+        drop(app_obj);
+
+        let conjugations = VerbConjugations::get_conjugation_tables(
+            verb.as_str(),
+            language.as_str(),
+        ).await;
+
+        let mut app_obj = self.app.lock().await;
+        app_obj.set_conjugations(conjugations?);
+        Ok(())
+    }
+
     async fn attempt_word_definition(
         &mut self,
         to_language: String,
@@ -98,16 +98,20 @@ impl LookupEventHandler {
         let word = app_obj.command_body();
         app_obj.clear_input();
 
-        let language = app_obj.language.clone();
-
         drop(app_obj);
 
-        let tab = get_definition_tables(
+        let tables = get_definition_tables(
             to_language,
             from_language,
             word
         )
-            .await
+            .await;
+
+        if let Err(user_error) = tables {
+            return Err(user_error);
+        }
+
+        let tab = tables?
             .definitions
             .swap_remove(0);
 

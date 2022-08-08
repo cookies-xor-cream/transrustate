@@ -1,7 +1,7 @@
 
 use reqwest;
 use scraper::{Html, ElementRef};
-use crate::wordreference::wordreference_utils;
+use crate::{wordreference::wordreference_utils, user_error::UserError};
 
 pub struct DefinitionTable {
     pub header: Vec<String>, // [1, 2]
@@ -13,7 +13,17 @@ pub struct WordDefinitions {
     pub definitions: Vec<DefinitionTable>,
 }
 
-pub fn extract_definitions_from_table(table: ElementRef, to_language: String) -> DefinitionTable {
+pub fn extract_definitions_from_table(
+    table: ElementRef,
+    to_language: String,
+) -> Result<DefinitionTable, UserError> {
+    let invalid_parsing_error = UserError {
+        message: format!(
+            "Translations to '{to_language}' could not be found for the word. \
+             Please double check your spelling",
+        )
+    };
+
     let table = scraper::Html::parse_fragment(&table.html());
 
     let from_word_to_word_query = scraper::Selector::parse(
@@ -53,6 +63,8 @@ pub fn extract_definitions_from_table(table: ElementRef, to_language: String) ->
             if to_words.len() != 0 {
                 let l = to_words.last_mut().unwrap();
                 l.push(b);
+            } else {
+                return Err(invalid_parsing_error);
             }
         }
     }
@@ -83,34 +95,57 @@ pub fn extract_definitions_from_table(table: ElementRef, to_language: String) ->
         .map(|x| x.to_string())
         .collect::<Vec<String>>();
 
-    DefinitionTable {
+    let definition_table = DefinitionTable {
         header,
         definitions,
-    }
+    };
+
+    Ok(definition_table)
 }
 
-pub async fn get_definition_tables(to_language: String, from_language: String, word: String) -> WordDefinitions {
+pub async fn get_definition_tables(
+    to_language: String,
+    from_language: String,
+    word: String
+) -> Result<WordDefinitions, UserError> {
+    let not_exist_error = UserError {
+        message: format!(
+            "The word '{word}' does not exist in the selected language \
+            ({from_language}). Please double check your spelling",
+        )
+    };
+
+    let network_error = UserError {
+        message: "Could not find the corresponding definitions, \
+        please check your network connection".to_string(),
+    };
+
     let word_query_url = wordreference_utils::definition_url(
         from_language.clone(),
         to_language.clone(),
         word.clone(),
     );
 
-    let APP_USER_AGENT = "user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36".to_string();
+    let app_user_agent = "user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36".to_string();
 
     let client = reqwest::Client::builder()
-        .user_agent(APP_USER_AGENT)
+        .user_agent(app_user_agent)
         .build()
         .unwrap();
 
-    let response = client
-        .get(word_query_url)
+    let response = match match client.get(
+            word_query_url,
+        )
         .send()
-        .await
-        .unwrap()
+        .await {
+            Ok(it) => it,
+            Err(_err) => return Err(network_error),
+        }
         .text()
-        .await
-        .unwrap();
+        .await {
+            Ok(it) => it,
+            Err(_err) => return Err(not_exist_error),
+        };
 
     let document = scraper::Html::parse_document(&response);
     let table_query = scraper::Selector::parse("table.WRD")
@@ -118,15 +153,26 @@ pub async fn get_definition_tables(to_language: String, from_language: String, w
     let tables = document
         .select(&table_query);
 
-    let definitions = tables
-        .map(|table| {
-            extract_definitions_from_table(table, to_language.clone())
-        })
-        .collect::<Vec<DefinitionTable>>();
+    let mut definitions: Vec<DefinitionTable> = Vec::new();
+    for table in tables {
+        let definition_table_result = extract_definitions_from_table(table, to_language.clone());
+
+        if let Ok(definition_table) = definition_table_result {
+            definitions.push(definition_table);
+        } else if let Err(user_error) = definition_table_result {
+            return Err(user_error);
+        }
+    }
+
+    if definitions.len() == 0 {
+        return Err(not_exist_error);
+    }
 
     let title = format!("Define {word} ({to_language})");
-    WordDefinitions {
+    let word_definitions = WordDefinitions {
         title,
         definitions,
-    }
+    };
+
+    Ok(word_definitions)
 }
