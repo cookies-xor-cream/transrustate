@@ -1,4 +1,4 @@
-use reqwest;
+use reqwest::{self, Client};
 use scraper::Html;
 
 use crate::{wordreference::wordreference_utils, user_error::UserError};
@@ -66,7 +66,12 @@ impl VerbConjugations {
         VerbConjugations::new()
     }
 
-    async fn scrape_conjugation_tables(&self, verb: &str, language: &str) -> Result<Vec<Html>, UserError> {
+    async fn scrape_conjugation_tables(
+        &self,
+        verb: &str,
+        language: &str,
+        client: &Client,
+    ) -> Result<Vec<Html>, UserError> {
         let not_exist_error = UserError {
             message: format!(
                 "The verb '{verb}' does not exist in the selected language \
@@ -84,18 +89,19 @@ impl VerbConjugations {
             verb.to_string(),
         );
 
-        let response = match match reqwest::get(
-                            verb_query_url,
-                        )
-                            .await {
-                    Ok(it) => it,
-                    Err(_err) => return Err(network_error),
-                }
-                    .text()
-                    .await {
-            Ok(it) => it,
-            Err(_err) => return Err(not_exist_error),
-        };
+        let response = match match client.get(
+                verb_query_url,
+            )
+            .send()
+            .await {
+                Ok(it) => it,
+                Err(_err) => return Err(network_error),
+            }
+            .text()
+            .await {
+                Ok(it) => it,
+                Err(_err) => return Err(not_exist_error),
+            };
 
         let document = scraper::Html::parse_document(&response);
         let table_query = scraper::Selector::parse("table.neoConj")
@@ -139,9 +145,14 @@ impl VerbConjugations {
         self.conjugation_tables.push(ConjugationTable::new(cell_values));
     }
 
-    pub async fn get_conjugation_tables(verb: &str, language: &str) -> Result<VerbConjugations, UserError> {
+    pub async fn get_conjugation_tables(
+        verb: &str,
+        language: &str,
+        client: &Client,
+    ) -> Result<VerbConjugations, UserError> {
         let mut verb_conjugations = VerbConjugations::new();
-        let tables_result = verb_conjugations.scrape_conjugation_tables(verb, language).await;
+        let tables_result = verb_conjugations
+            .scrape_conjugation_tables(verb, language, client).await;
         match tables_result {
             Err(err) => {
                 Err(err)

@@ -1,5 +1,5 @@
 
-use reqwest;
+use reqwest::{self, Client};
 use scraper::{Html, ElementRef};
 use crate::{wordreference::wordreference_utils, user_error::UserError};
 
@@ -115,7 +115,8 @@ pub fn extract_definitions_from_table(
 pub async fn get_definition_tables(
     to_language: String,
     from_language: String,
-    word: String
+    word: String,
+    client: &Client,
 ) -> Result<WordDefinitions, UserError> {
     let not_exist_error = UserError {
         message: format!(
@@ -134,13 +135,6 @@ pub async fn get_definition_tables(
         to_language.clone(),
         word.clone(),
     );
-
-    let app_user_agent = "user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36".to_string();
-
-    let client = reqwest::Client::builder()
-        .user_agent(app_user_agent)
-        .build()
-        .unwrap();
 
     let response = match match client.get(
             word_query_url,

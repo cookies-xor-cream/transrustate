@@ -81,12 +81,12 @@ impl App {
         self.loading = false;
     }
 
-    fn progress_smoothing(&self, current: u128, max_total: u128) -> f32 {
-        let current = current as f32;
-        let max_total = max_total as f32;
+    fn progress_smoothing(&self, current_load_time: u128, max_load_time: u128) -> f32 {
+        let current_load_time = current_load_time as f32;
+        let max_load_time = max_load_time as f32;
 
         // uses the sigmoid function to smooth the progress bar
-        let unsmoothed_progress = 4.0 * ((current / max_total) - 0.5);
+        let unsmoothed_progress = 4.0 * ((current_load_time / max_load_time) - 0.5);
         let denominator = 1.0 + (-unsmoothed_progress).exp();
         let smoothed_progress = 1.0 / denominator;
 
@@ -102,7 +102,8 @@ impl App {
         let loaded_for = loaded_for_duration
             .as_millis();
 
-        let progress = self.progress_smoothing(loaded_for, 3500) as u16;
+        let max_load_time = 3000;
+        let progress = self.progress_smoothing(loaded_for, max_load_time) as u16;
 
         progress
     }
