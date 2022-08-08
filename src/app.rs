@@ -425,7 +425,7 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     let input_str = app.get_input();
     let input = Paragraph::new(input_str.as_ref())
-        .style(default_style.add_modifier(Modifier::SLOW_BLINK))
+        .style(default_style)
         .block(Block::default().borders(Borders::ALL).title("Command Prompt"));
 
     f.render_widget(input, prompt_rect);

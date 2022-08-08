@@ -117,7 +117,6 @@ impl LookupEventHandler {
         let mut app_obj = self.app.lock().await;
         let word = app_obj.command_body();
         app_obj.clear_input();
-
         drop(app_obj);
 
         let tables = WordDefinitions::get_definition_tables(
