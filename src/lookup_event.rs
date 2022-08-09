@@ -9,7 +9,7 @@ use crate::{
     definitions::WordDefinitions
 };
 
-use rusqlite::{Connection, Result, Row};
+use rusqlite::{Connection, Result};
 
 pub enum LookupEvent {
     Verb,

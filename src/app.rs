@@ -11,7 +11,7 @@ use std::{io, sync::Arc, time::Duration, cmp::max};
 use tokio::time::Instant;
 use tui::{
     backend::{Backend},
-    layout::{Constraint, Layout, Direction, Alignment},
+    layout::{Constraint, Layout, Direction},
     style::{Color, Modifier, Style},
     widgets::{Block, Borders, Cell, Row, Table, TableState, Paragraph, Gauge, Wrap},
     Frame, Terminal,
