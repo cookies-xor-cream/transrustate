@@ -2,7 +2,9 @@ use reqwest::{self, Client};
 use scraper::Html;
 
 use crate::{wordreference::wordreference_utils, user_error::UserError};
+use serde::{Serialize, Deserialize};
 
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ConjugationTable {
     pub tense: String,
     pub conjugations: Vec<Vec<String>>, // [[1, 2], [3, 4]]
@@ -49,6 +51,7 @@ impl ConjugationTable {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
 pub struct VerbConjugations {
     pub verb: String,
     pub conjugation_tables: Vec<ConjugationTable>,
