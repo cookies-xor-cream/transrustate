@@ -74,6 +74,17 @@ impl LookupEventHandler {
            [],
         ).expect("Initialized conjugations table");
 
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS definitions (
+                id INTEGER PRIMARY KEY,
+                word TEXT NOT NULL,
+                to_language TEXT NOT NULL,
+                from_language TEXT NOT NULL,
+                word_definitions TEXT NOT NULL
+            )",
+           [],
+        ).expect("Initialized conjugations table");
+
         connection
     }
 
@@ -119,20 +130,29 @@ impl LookupEventHandler {
         };
     }
 
+    async fn load_translation_table(&mut self, to_language: String, from_language: String) {
+        match self.attempt_word_definition(
+            from_language,
+            to_language,
+        ).await {
+            Err(err) => {
+                let mut app = self.app.lock().await;
+                app.set_error(err);
+            }
+            Ok(tables) => {
+                let mut app_obj = self.app.lock().await;
+                app_obj.set_definitions(tables);
+            }
+        };
+    }
+
     async fn handle_word_definition(&mut self) {
         let app_obj = self.app.lock().await;
         let to_language = app_obj.language.clone();
         drop(app_obj);
 
         let from_language = "english".to_string();
-
-        if let Err(err) = self.attempt_word_definition(
-            from_language,
-            to_language,
-        ).await {
-            let mut app = self.app.lock().await;
-            app.set_error(err);
-        }
+        self.load_translation_table(to_language.clone(), from_language.clone()).await;
     }
 
     async fn handle_word_translation(&mut self) {
@@ -141,14 +161,7 @@ impl LookupEventHandler {
         drop(app_obj);
 
         let to_language = "english".to_string();
-
-        if let Err(err) = self.attempt_word_definition(
-            from_language,
-            to_language,
-        ).await {
-            let mut app = self.app.lock().await;
-            app.set_error(err);
-        }
+        self.load_translation_table(to_language.clone(), from_language.clone()).await;
     }
 
     async fn attempt_verb_lookup(&mut self) -> Result<VerbConjugations, UserError> {
@@ -159,8 +172,6 @@ impl LookupEventHandler {
         let language = app_obj.language.clone();
 
         drop(app_obj);
-
-        // println!("!{}!", verb);
 
         let cached_conjugations = self.cached_verb_conjugation(verb.clone(), language.clone());
 
@@ -173,7 +184,6 @@ impl LookupEventHandler {
             },
 
             Err(_err) => {
-                println!("!here, {verb}, {language} !");
                 let conjugations = VerbConjugations::get_conjugation_tables(
                     verb.as_str(),
                     language.as_str(),
@@ -198,28 +208,57 @@ impl LookupEventHandler {
         &mut self,
         to_language: String,
         from_language: String,
-    ) -> Result<(), UserError> {
+    ) -> Result<WordDefinitions, UserError> {
         let mut app_obj = self.app.lock().await;
         let word = app_obj.command_body();
         app_obj.clear_input();
         drop(app_obj);
 
-        let tables = WordDefinitions::get_definition_tables(
-            to_language,
-            from_language,
-            word,
-            &self.client,
-        )
-            .await;
+        let cached_definitions = self.cached_word_definition(
+            word.clone(), to_language.clone(), from_language.clone()
+        );
 
-        if let Err(user_error) = tables {
-            return Err(user_error);
+        match cached_definitions {
+            Ok(definitions_str) => {
+                let definitions = serde_json::from_str(&definitions_str.clone())
+                    .expect("Deserialized definitions");
+
+                Ok(definitions)
+            },
+
+            Err(_err) => {
+                let tables = WordDefinitions::get_definition_tables(
+                    to_language.clone(),
+                    from_language.clone(),
+                    word.clone(),
+                    &self.client,
+                )
+                    .await;
+
+                if let Err(user_error) = tables {
+                    return Err(user_error);
+                }
+
+                let tables = tables?;
+
+                // Add the conjugation to the database
+                let tables_json = serde_json::to_string(&tables.clone())
+                    .expect("Serialized definitions");
+
+                self.connection.execute(
+                    "INSERT INTO definitions \
+                    (word, to_language, from_language, word_definitions) \
+                    values (?1, ?2, ?3, ?4)",
+                    &[
+                        &word.to_string(),
+                        &to_language.to_string(),
+                        &from_language.to_string(),
+                        &tables_json.to_string()
+                    ],
+                ).expect("Inserted definition into the database");
+
+                Ok(tables)
+            }
         }
-
-        let tables = tables?;
-
-        let mut app_obj = self.app.lock().await;
-        app_obj.set_definitions(tables);
-        Ok(())
     }
 }

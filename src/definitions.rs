@@ -4,13 +4,13 @@ use scraper::{Html, ElementRef};
 use crate::{wordreference::wordreference_utils, user_error::UserError};
 use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct DefinitionTable {
     pub header: Vec<String>, // [1, 2]
     pub definitions: Vec<Vec<String>>, // [[1, 2], [3, 4]]
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct WordDefinitions {
     pub title: String,
     pub definitions: Vec<DefinitionTable>,
