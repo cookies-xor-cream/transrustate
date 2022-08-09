@@ -84,7 +84,7 @@ impl VerbConjugations {
 
         let network_error = UserError {
             message: "Could not find the corresponding verb conjugaitons, \
-            please check your network connection".to_string(),
+            please check your network connection and spelling".to_string(),
         };
 
         let verb_query_url = wordreference_utils::conjugation_url(

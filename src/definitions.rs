@@ -145,7 +145,7 @@ impl WordDefinitions {
 
         let network_error = UserError {
             message: "Could not find the corresponding definitions, \
-            please check your network connection".to_string(),
+            please check your network connection and spelling".to_string(),
         };
 
         let word_query_url = wordreference_utils::definition_url(
