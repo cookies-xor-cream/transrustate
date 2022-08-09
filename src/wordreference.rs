@@ -23,7 +23,7 @@ pub mod wordreference_utils {
             "italian" => "it".to_string(),
             "english" => "en".to_string(),
             "spanish" => "es".to_string(),
-            _ => "fr".to_string(), // default to french
+            _ => "".to_string(), // is an error state
         }
     }
 

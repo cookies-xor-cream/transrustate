@@ -4,7 +4,7 @@ use crate::{
         AppEvent,
         AppEvents
     },
-    lookup_event::LookupEvent, user_error::UserError, definitions::WordDefinitions
+    lookup_event::LookupEvent, user_error::UserError, definitions::WordDefinitions, wordreference::wordreference_utils
 };
 
 use std::{io, sync::Arc, time::Duration, cmp::max};
@@ -204,7 +204,13 @@ impl App {
     fn set_language(&mut self) {
         self.remove_prefix();
         let language: String = self.input.drain(..).collect();
-        self.language = language;
+        if wordreference_utils::map_language(language.clone()).len() > 0 {
+            self.language = language;
+        } else {
+            self.set_error(UserError {
+                message: format!("'{language}' is not a valid language")
+            })
+        }
     }
 
     fn display_help(&mut self) {
@@ -223,11 +229,11 @@ impl App {
             ],
             vec![
                 "def <word>".to_string(),
-                "gives the definition of the word in the current language".to_string(),
+                "translates a word from english to the current language".to_string(),
             ],
             vec![
                 "trans <word>".to_string(),
-                "translates a word from the current language to english".to_string(),
+                "gives the definition of the word in the current language".to_string(),
             ],
             vec![
                 "conj <verb>".to_string(),
@@ -423,10 +429,13 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         _ => content_area[1],
     };
 
+    let language_code = wordreference_utils::map_language(app.language.clone());
+    let prompt_title = format!("Command Prompt ({language_code})");
+
     let input_str = app.get_input();
     let input = Paragraph::new(input_str.as_ref())
         .style(default_style)
-        .block(Block::default().borders(Borders::ALL).title("Command Prompt"));
+        .block(Block::default().borders(Borders::ALL).title(prompt_title.as_str()));
 
     f.render_widget(input, prompt_rect);
 
