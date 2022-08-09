@@ -9,7 +9,7 @@ use crate::{
     definitions::WordDefinitions
 };
 
-use rusqlite::{Connection, Result};
+use rusqlite::{Connection, Result, Row};
 
 pub enum LookupEvent {
     Verb,
@@ -40,23 +40,6 @@ impl LookupEventHandler {
         }
     }
 
-    fn init_db() -> Connection {
-        let connection = Connection::open("lang_rs.db")
-            .expect("Connected to the sqlite database");
-
-        connection.execute(
-            "CREATE TABLE IF NOT EXISTS conjugations (
-                id INTEGER PRIMARY KEY,
-                language TEXT NOT NULL,
-                verb TEXT NOT NULL,
-                verb_conjugations TEXT NOT NULL
-            )",
-           [],
-        ).expect("Initialized conjugations table");
-
-        connection
-    }
-
     pub async fn handle_lookup_event(&mut self, lookup_event: LookupEvent) {
         let mut app = self.app.lock().await;
         app.start_load();
@@ -77,11 +60,63 @@ impl LookupEventHandler {
         app.end_load();
     }
 
+    fn init_db() -> Connection {
+        let connection = Connection::open("lang_rs.db")
+            .expect("Connected to the sqlite database");
+
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS conjugations (
+                id INTEGER PRIMARY KEY,
+                language TEXT NOT NULL,
+                verb TEXT NOT NULL,
+                verb_conjugations TEXT NOT NULL
+            )",
+           [],
+        ).expect("Initialized conjugations table");
+
+        connection
+    }
+
+    fn cached_verb_conjugation(
+        &self,
+        verb: String,
+        language: String,
+    ) -> Result<String> {
+        self.connection.query_row(
+            "SELECT verb_conjugations \
+            FROM conjugations \
+            WHERE language = ?1 AND verb = ?2",
+            &[&language.to_string(), &verb.to_string()],
+            |row| row.get(0),
+        )
+    }
+
+    fn cached_word_definition(
+        &self,
+        word: String,
+        to_language: String,
+        from_language: String,
+    ) -> Result<String> {
+        self.connection.query_row(
+            "SELECT word_definitions \
+            FROM definitions \
+            WHERE word = ?1 AND to_language = ?2 AND from_language = ?3",
+            &[&word.to_string(), &to_language.to_string(), &from_language.to_string()],
+            |row| row.get(0),
+        )
+    }
+
     async fn handle_verb_lookup(&mut self) {
-        if let Err(err) = self.attempt_verb_lookup().await {
-            let mut app = self.app.lock().await;
-            app.set_error(err);
-        }
+        match self.attempt_verb_lookup().await {
+            Err(err) => {
+                let mut app = self.app.lock().await;
+                app.set_error(err);
+            }
+            Ok(conjugations) => {
+                let mut app_obj = self.app.lock().await;
+                app_obj.set_conjugations(conjugations);
+            }
+        };
     }
 
     async fn handle_word_definition(&mut self) {
@@ -116,7 +151,7 @@ impl LookupEventHandler {
         }
     }
 
-    async fn attempt_verb_lookup(&mut self) -> Result<(), UserError> {
+    async fn attempt_verb_lookup(&mut self) -> Result<VerbConjugations, UserError> {
         let mut app_obj = self.app.lock().await;
         let verb = app_obj.command_body();
         app_obj.clear_input();
@@ -125,25 +160,38 @@ impl LookupEventHandler {
 
         drop(app_obj);
 
-        let conjugations = VerbConjugations::get_conjugation_tables(
-            verb.as_str(),
-            language.as_str(),
-            &self.client,
-        ).await?;
+        // println!("!{}!", verb);
 
-        // Add the conjugation to the database
-        let conjugations_json = serde_json::to_string(&conjugations.clone())
-            .expect("Serialized conjugations");
+        let cached_conjugations = self.cached_verb_conjugation(verb.clone(), language.clone());
 
-        self.connection.execute(
-            "INSERT INTO conjugations (language, verb, verb_conjugations) values (?1, ?2, ?3)",
-            &[&language.to_string(), &verb.to_string(), &conjugations_json.to_string()],
-        ).expect("Inserted conjugation into the database");
+        match cached_conjugations {
+            Ok(conjugations_str) => {
+                let conjugations = serde_json::from_str(&conjugations_str.clone())
+                    .expect("Deserialized conjugations");
 
-        // Display the conjugation
-        let mut app_obj = self.app.lock().await;
-        app_obj.set_conjugations(conjugations);
-        Ok(())
+                Ok(conjugations)
+            },
+
+            Err(_err) => {
+                println!("!here, {verb}, {language} !");
+                let conjugations = VerbConjugations::get_conjugation_tables(
+                    verb.as_str(),
+                    language.as_str(),
+                    &self.client,
+                ).await?;
+
+                // Add the conjugation to the database
+                let conjugations_json = serde_json::to_string(&conjugations.clone())
+                    .expect("Serialized conjugations");
+
+                self.connection.execute(
+                    "INSERT INTO conjugations (language, verb, verb_conjugations) values (?1, ?2, ?3)",
+                    &[&language.to_string(), &verb.to_string(), &conjugations_json.to_string()],
+                ).expect("Inserted conjugation into the database");
+
+                Ok(conjugations)
+            },
+        }
     }
 
     async fn attempt_word_definition(
