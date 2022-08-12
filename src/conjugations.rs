@@ -1,5 +1,5 @@
 use reqwest::{self, Client};
-use scraper::Html;
+use scraper::{Html, ElementRef};
 
 use crate::{wordreference::wordreference_utils, user_error::UserError};
 use serde::{Serialize, Deserialize};
@@ -70,7 +70,7 @@ impl VerbConjugations {
     }
 
     async fn scrape_conjugation_tables(
-        &self,
+        &mut self,
         verb: &str,
         language: &str,
         client: &Client,
@@ -107,6 +107,24 @@ impl VerbConjugations {
             };
 
         let document = scraper::Html::parse_document(&response);
+
+        let infinitive_query = scraper::Selector::parse("#conjtable td:nth-child(2)")
+            .expect("verb conjugation should have an infinitive");
+
+        let infinitive_cell = document
+            .select(&infinitive_query)
+            .collect::<Vec<ElementRef>>()
+            .swap_remove(0);
+
+        let infinitive = infinitive_cell
+            .text()
+            .collect::<Vec<&str>>()
+            .swap_remove(0)
+            .trim()
+            .to_string();
+
+        self.verb = infinitive.clone();
+
         let table_query = scraper::Selector::parse("table.neoConj")
             .expect("verb conjugation should have a table with the neoConj class");
         let tables = document
@@ -164,8 +182,6 @@ impl VerbConjugations {
                 for table in tables {
                     verb_conjugations.extract_conjugations_from_table(table);
                 }
-
-                verb_conjugations.verb = verb.to_string();
 
                 Ok(verb_conjugations)
             }
