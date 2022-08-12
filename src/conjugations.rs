@@ -111,10 +111,15 @@ impl VerbConjugations {
         let infinitive_query = scraper::Selector::parse("#conjtable td:nth-child(2)")
             .expect("verb conjugation should have an infinitive");
 
-        let infinitive_cell = document
+        let infinitive_cells = document
             .select(&infinitive_query)
-            .collect::<Vec<ElementRef>>()
-            .swap_remove(0);
+            .collect::<Vec<ElementRef>>();
+
+        if infinitive_cells.len() == 0 {
+            return Err(not_exist_error);
+        }
+
+        let infinitive_cell = infinitive_cells[0];
 
         let infinitive = infinitive_cell
             .text()
