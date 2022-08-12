@@ -243,16 +243,25 @@ impl LookupEventHandler {
                     ],
                 ).expect("Inserted conjugation into the database");
 
-                self.connection.execute(
-                    "INSERT INTO rootwords \
-                    (language, word, rootword) \
-                    values (?1, ?2, ?3)",
-                    &[
-                        &language.to_string(),
-                        &verb.to_string(),
-                        &infinitive.to_string(),
-                    ],
-                ).expect("Inserted definition into the database");
+                let conjugation_tables = conjugations.conjugation_tables.clone();
+                for table in conjugation_tables {
+                    for conjugation_tup in table.conjugations {
+                        let conjugation = &conjugation_tup[1];
+
+                        if !conjugation.contains(' ') {
+                            self.connection.execute(
+                                "INSERT INTO rootwords \
+                                (language, word, rootword) \
+                                values (?1, ?2, ?3)",
+                                &[
+                                    &language.to_string(),
+                                    &conjugation.to_string(),
+                                    &infinitive.to_string(),
+                                ],
+                            ).expect("Inserted definition into the database");
+                        }
+                    }
+                }
 
                 Ok(conjugations)
             },
