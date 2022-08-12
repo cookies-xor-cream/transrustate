@@ -68,6 +68,16 @@ impl LookupEventHandler {
             .expect("Connected to the sqlite database");
 
         connection.execute(
+            "CREATE TABLE IF NOT EXISTS rootwords (
+                id INTEGER PRIMARY KEY,
+                language TEXT NOT NULL,
+                word TEXT NOT NULL,
+                rootword TEXT NOT NULL
+            )",
+            [],
+        ).expect("Initialized conjugations table");
+
+        connection.execute(
             "CREATE TABLE IF NOT EXISTS conjugations (
                 id INTEGER PRIMARY KEY,
                 language TEXT NOT NULL,
@@ -89,6 +99,20 @@ impl LookupEventHandler {
         ).expect("Initialized conjugations table");
 
         connection
+    }
+
+    fn map_word_to_root(
+        &self,
+        word: String,
+        language: String,
+    ) -> Result<String> {
+        self.connection.query_row(
+            "SELECT rootword \
+            FROM rootwords \
+            WHERE language = ?1 AND word = ?2",
+            &[&language.to_string(), &word.to_string()],
+            |row| row.get(0),
+        )
     }
 
     fn cached_verb_conjugation(
@@ -169,12 +193,21 @@ impl LookupEventHandler {
 
     async fn attempt_verb_lookup(&mut self) -> Result<VerbConjugations, UserError> {
         let mut app_obj = self.app.lock().await;
-        let verb = app_obj.command_body();
+        let mut verb = app_obj.command_body();
         app_obj.clear_input();
 
         let language = app_obj.language.clone();
 
         drop(app_obj);
+
+        let rootword_result = self.map_word_to_root(
+            verb.clone(),
+            language.clone(),
+        );
+
+        if let Ok(rootword) = rootword_result {
+            verb = rootword;
+        }
 
         let cached_conjugations = self.cached_verb_conjugation(verb.clone(), language.clone());
 
@@ -201,6 +234,8 @@ impl LookupEventHandler {
                     "INSERT INTO conjugations (language, verb, verb_conjugations) values (?1, ?2, ?3)",
                     &[&language.to_string(), &verb.to_string(), &conjugations_json.to_string()],
                 ).expect("Inserted conjugation into the database");
+
+                // TODO: map word to root
 
                 Ok(conjugations)
             },
