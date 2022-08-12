@@ -226,16 +226,33 @@ impl LookupEventHandler {
                     &self.client,
                 ).await?;
 
+                let infinitive = conjugations.verb.to_string();
+
                 // Add the conjugation to the database
                 let conjugations_json = serde_json::to_string(&conjugations.clone())
                     .expect("Serialized conjugations");
 
                 self.connection.execute(
-                    "INSERT INTO conjugations (language, verb, verb_conjugations) values (?1, ?2, ?3)",
-                    &[&language.to_string(), &verb.to_string(), &conjugations_json.to_string()],
+                    "INSERT INTO conjugations \
+                    (language, verb, verb_conjugations) \
+                    values (?1, ?2, ?3)",
+                    &[
+                        &language.to_string(),
+                        &infinitive.to_string(),
+                        &conjugations_json.to_string()
+                    ],
                 ).expect("Inserted conjugation into the database");
 
-                // TODO: map word to root
+                self.connection.execute(
+                    "INSERT INTO rootwords \
+                    (language, word, rootword) \
+                    values (?1, ?2, ?3)",
+                    &[
+                        &language.to_string(),
+                        &verb.to_string(),
+                        &infinitive.to_string(),
+                    ],
+                ).expect("Inserted definition into the database");
 
                 Ok(conjugations)
             },
