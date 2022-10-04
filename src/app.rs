@@ -13,8 +13,8 @@ use tui::{
     backend::{Backend},
     layout::{Constraint, Layout, Direction},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Cell, Row, Table, TableState, Paragraph, Gauge, Wrap},
-    Frame, Terminal,
+    widgets::{Block, Borders, Cell, Row, Table, TableState, Paragraph, Wrap, LineGauge},
+    Frame, Terminal, symbols,
 };
 
 pub struct TableData {
@@ -81,21 +81,22 @@ impl App {
         self.loading = false;
     }
 
-    fn progress_smoothing(&self, current_load_time: u128, max_load_time: u128) -> f32 {
-        let current_load_time = current_load_time as f32;
-        let max_load_time = max_load_time as f32;
+    fn progress_smoothing(&self, current_load_time: u128, max_load_time: u128) -> f64 {
+        let current_load_time = current_load_time as f64;
+        let max_load_time = max_load_time as f64;
 
         // uses the sigmoid function to smooth the progress bar
         let unsmoothed_progress = 4.0 * ((current_load_time / max_load_time) - 0.5);
         let denominator = 1.0 + (-unsmoothed_progress).exp();
         let smoothed_progress = 1.0 / denominator;
 
-        100.0 * smoothed_progress
+        smoothed_progress
     }
 
-    pub fn get_progress(&mut self) -> u16 {
+    // Gets progress as a ratio
+    pub fn get_progress(&mut self) -> f64 {
         if !self.loading {
-            return 100;
+            return 1.0;
         }
 
         let loaded_for_duration = self.load_start.elapsed();
@@ -103,7 +104,7 @@ impl App {
             .as_millis();
 
         let max_load_time = 3000;
-        let progress = self.progress_smoothing(loaded_for, max_load_time) as u16;
+        let progress = self.progress_smoothing(loaded_for, max_load_time);
 
         progress
     }
@@ -373,8 +374,8 @@ pub async fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &Arc<tokio::sy
 }
 
 pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    let load_percent = app.get_progress();
-    let is_loading = load_percent != 100;
+    let load_ratio = app.get_progress();
+    let is_loading = load_ratio != 1.0;
 
     let default_style = Style::default().fg(Color::Yellow).bg(Color::Black);
 
@@ -441,15 +442,16 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     f.render_widget(input, prompt_rect);
 
     if is_loading {
-        let guage = Gauge::default()
+        let guage = LineGauge::default()
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .style(default_style)
                     .title("Loading")
             )
-            .gauge_style(default_style.add_modifier(Modifier::ITALIC))
-            .percent(load_percent);
+            .gauge_style(default_style.add_modifier(Modifier::ITALIC | Modifier::BOLD))
+            .line_set(symbols::line::THICK)
+            .ratio(load_ratio);
 
         f.render_widget(guage, guage_rect);
     }
