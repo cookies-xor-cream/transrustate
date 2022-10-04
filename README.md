@@ -1,6 +1,22 @@
 # Transrustate
-A simple terminal-based tool in order to help out with translating and conjugating verbs.
+A terminal-based utility to help with translating and conjugating verbs.
 
-Makes a request to [wordreference](www.wordreference.com) and scrapes the results in order display the answer in the terminal. Inserts the results into a database in order to speed up repeat queries.
+Makes a request to [wordreference](www.wordreference.com) and displays the results in the terminal. Caches all results for future use at `~/.lang_rs.db`.
 
-Uses [TUI](https://docs.rs/tui/latest/tui/) for the interface and [rusqlite](https://docs.rs/rusqlite/latest/rusqlite/) (a rust interface to [sqlite](https://www.sqlite.org/index.html)) to manage the data.
+Built on top of [TUI](https://docs.rs/tui/latest/tui/) and [rusqlite](https://docs.rs/rusqlite/latest/rusqlite/) (a rust interface to [sqlite](https://www.sqlite.org/index.html)).
+
+# Installation
+First build the project:
+```bash
+cargo build --bin transrustate --release
+```
+
+Once built the binary is located at `./target/release/transrustate` and can be copied into path.
+
+Once in path the program can be run by typing `transrustate` into the terminal.
+
+# Clearing The Cache
+I plan to add a command to wipe the cache in the future, however, currently it must be done manually:
+```bash
+rm ~/.lang_rs.db
+```
