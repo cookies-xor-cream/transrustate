@@ -209,7 +209,7 @@ impl App {
             self.language = language;
         } else {
             self.set_error(UserError {
-                message: format!("'{language}' is not a valid language")
+                message: format!("Supported languages: french, italian, or spanish does not include '{language}'")
             })
         }
     }
