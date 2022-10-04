@@ -157,7 +157,8 @@ impl App {
         self.input
             .split(" ")
             .skip(1)
-            .collect::<String>()
+            .collect::<Vec<&str>>()
+            .join(" ")
     }
 
     pub fn clear_input(&mut self) {
