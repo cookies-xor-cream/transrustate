@@ -1,6 +1,5 @@
 use std::sync::Arc;
 use reqwest::Client;
-use std::env::temp_dir;
 
 use crate::{
     app::App,
@@ -61,8 +60,8 @@ impl LookupEventHandler {
     }
 
     fn init_db() -> Connection {
-        let mut db_path = temp_dir();
-        db_path.push("lang_rs.db");
+        let mut db_path = home::home_dir().expect("Open home directory.");
+        db_path.push(".lang_rs.db");
 
         let connection = Connection::open(db_path)
             .expect("Connected to the sqlite database");
